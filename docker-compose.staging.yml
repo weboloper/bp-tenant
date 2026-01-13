@@ -1,0 +1,189 @@
+# Staging environment için .env.staging dosyasını kullan
+
+services:
+  # PostgreSQL Database (Staging)
+  postgres:
+    image: postgres:15-alpine
+    container_name: bp_postgres_staging
+    env_file:
+      - .env.staging
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bp_staging_db}
+      POSTGRES_USER: ${POSTGRES_USER:-bp_staging_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bp_staging_pass}
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"  # Farklı port (production ile çakışmasın)
+    restart: unless-stopped
+    stop_grace_period: 30s  # 30 saniye sonra zorla durdur
+    stop_signal: SIGTERM     # İlk olarak graceful shutdown dene
+
+  # Redis Cache & Celery Broker (Staging)
+  redis:
+    image: redis:7-alpine
+    container_name: bp_redis_staging
+    ports:
+      - "6380:6379"  # Farklı port
+    volumes:
+      - redis_staging_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # Django Backend (Staging)
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bp_backend_staging
+    command: gunicorn --bind 0.0.0.0:8000 config.wsgi:application --workers=2 --timeout=60 --reload
+    env_file:
+      - .env.staging
+    volumes:
+      - ./backend:/app
+      - static_staging_volume:/app/staticfiles
+      - media_staging_volume:/app/media
+    expose:
+      - "8000"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-bp_staging_user}:${POSTGRES_PASSWORD:-bp_staging_pass}@postgres:5432/${POSTGRES_DB:-bp_staging_db}
+      - REDIS_URL=redis://redis:6379/0
+      - DJANGO_ENV=staging
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Celery Worker (Staging)
+  celery:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bp_celery_staging
+    command: celery -A config worker -l info --concurrency=1
+    env_file:
+      - .env.staging
+    volumes:
+      - ./backend:/app
+      - media_staging_volume:/app/media
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-bp_staging_user}:${POSTGRES_PASSWORD:-bp_staging_pass}@postgres:5432/${POSTGRES_DB:-bp_staging_db}
+      - REDIS_URL=redis://redis:6379/0
+      - DJANGO_ENV=staging
+    depends_on:
+      - postgres
+      - redis
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "celery", "-A", "config", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Celery Beat (Staging)
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bp_celery_beat_staging
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file:
+      - .env.staging
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-bp_staging_user}:${POSTGRES_PASSWORD:-bp_staging_pass}@postgres:5432/${POSTGRES_DB:-bp_staging_db}
+      - REDIS_URL=redis://redis:6379/0
+      - DJANGO_ENV=staging
+    depends_on:
+      - postgres
+      - redis
+      - backend
+    restart: unless-stopped
+
+  # Caddy Web Server (Staging)
+  caddy:
+    image: caddy:2-alpine
+    container_name: bp_caddy_staging
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile.prod:/etc/caddy/Caddyfile
+      - static_staging_volume:/static
+      - media_staging_volume:/media
+      - caddy_staging_data:/data
+      - caddy_staging_config:/config
+    env_file:
+      - .env.staging
+    depends_on:
+      - backend
+
+  # SSL artık Caddy tarafından otomatik olarak halleediliyor
+  # Certbot staging container'ına gerek yok!
+
+  # pgAdmin for Staging Database Management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: bp_pgadmin_staging
+    env_file:
+      - .env.staging
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@staging.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-staging123}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin_staging_data:/var/lib/pgadmin
+    ports:
+      - "5051:80"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  # Flower for Celery Monitoring (Staging)
+  flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bp_flower_staging
+    command: celery -A config flower --port=5555
+    env_file:
+      - .env.staging
+    ports:
+      - "5556:5555"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-bp_staging_user}:${POSTGRES_PASSWORD:-bp_staging_pass}@postgres:5432/${POSTGRES_DB:-bp_staging_db}
+      - REDIS_URL=redis://redis:6379/0
+      - DJANGO_ENV=staging
+    depends_on:
+      - redis
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_staging_data:
+    driver: local
+  redis_staging_data:
+    driver: local
+  static_staging_volume:
+    driver: local
+  media_staging_volume:
+    driver: local
+  pgadmin_staging_data:
+    driver: local
+  caddy_staging_data:
+    driver: local
+  caddy_staging_config:
+    driver: local
+
+networks:
+  default:
+    name: bp_staging_network
+    driver: bridge

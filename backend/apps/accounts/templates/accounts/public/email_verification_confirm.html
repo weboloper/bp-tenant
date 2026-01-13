@@ -1,0 +1,31 @@
+{% extends 'accounts/auth_base.html' %}
+
+{% block sidebar_icon %}{% if validlink %}✅{% else %}❌{% endif %}{% endblock %}
+{% block sidebar_title %}{% if validlink %}Başarılı!{% else %}Hata{% endif %}{% endblock %}
+{% block sidebar_description %}{% if validlink %}Email adresiniz doğrulandı{% else %}Doğrulama başarısız oldu{% endif %}{% endblock %}
+
+{% block auth_content %}
+{% if validlink %}
+    <div class="alert alert-success py-2">
+        <h6 class="alert-heading mb-1">✅ Email Doğrulandı!</h6>
+        <p class="mb-0 small">Email adresiniz başarıyla doğrulandı. Artık hesabınızı tam olarak kullanabilirsiniz</p>
+    </div>
+    
+    <div class="d-grid mb-3">
+        <a href="{% url 'accounts:login' %}" class="btn btn-primary">Giriş Yap</a>
+    </div>
+{% else %}
+    <div class="alert alert-danger py-2">
+        <h6 class="alert-heading mb-1">❌ Geçersiz Link</h6>
+        <p class="mb-0 small">Email doğrulama linki geçersiz veya süresi dolmuş</p>
+    </div>
+    
+    <div class="d-grid mb-3">
+        <a href="{% url 'accounts:email_verification_resend' %}" class="btn btn-primary">Yeni Link İste</a>
+    </div>
+{% endif %}
+
+<div class="text-center small">
+    <a href="{% url 'accounts:login' %}">← Giriş sayfasına dön</a>
+</div>
+{% endblock %}

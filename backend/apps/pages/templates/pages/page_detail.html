@@ -1,0 +1,209 @@
+{% extends 'core/base_content.html' %}
+
+{% block extra_css %}
+<style>
+    .page-content {
+        line-height: 1.8;
+        font-size: 1.1rem;
+    }
+
+    .page-content img {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin: 1.5rem auto;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .page-content p {
+        margin-bottom: 1rem;
+    }
+
+    .page-content h1,
+    .page-content h2,
+    .page-content h3,
+    .page-content h4,
+    .page-content h5,
+    .page-content h6 {
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+
+    .page-content ul,
+    .page-content ol {
+        margin-bottom: 1rem;
+        padding-left: 2rem;
+    }
+
+    .page-content table {
+        width: 100%;
+        margin-bottom: 1rem;
+        border-collapse: collapse;
+    }
+
+    .page-content table th,
+    .page-content table td {
+        padding: 0.75rem;
+        border: 1px solid #dee2e6;
+    }
+
+    .page-content table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+
+    .page-content blockquote {
+        border-left: 4px solid #0d6efd;
+        padding-left: 1rem;
+        margin: 1.5rem 0;
+        color: #6c757d;
+        font-style: italic;
+    }
+
+    .page-content code {
+        background-color: #f8f9fa;
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.9em;
+    }
+
+    .page-content pre {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 4px;
+        overflow-x: auto;
+        margin-bottom: 1rem;
+    }
+
+    .page-content a {
+        color: #0d6efd;
+        text-decoration: underline;
+    }
+
+    .page-content a:hover {
+        color: #0a58ca;
+    }
+
+    .page-content video {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin: 1.5rem auto;
+        border-radius: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block main_content %}
+<div class="p-4">
+    <!-- Breadcrumb -->
+    {% if breadcrumbs %}
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'pages:page_list' %}">Sayfalar</a></li>
+            {% for crumb in breadcrumbs %}
+                {% if forloop.last %}
+                    <li class="breadcrumb-item active" aria-current="page">{{ crumb.title }}</li>
+                {% else %}
+                    <li class="breadcrumb-item"><a href="{% url 'pages:page_detail' crumb.slug %}">{{ crumb.title }}</a></li>
+                {% endif %}
+            {% endfor %}
+        </ol>
+    </nav>
+    {% endif %}
+
+    <!-- Page Content -->
+    <article>
+        <header class="mb-4">
+            <h1 class="mb-3">{{ page.title }}</h1>
+            <div class="text-muted small">
+                <span>📅 Oluşturulma: {{ page.created_at|date:"d F Y" }}</span>
+                {% if page.updated_at != page.created_at %}
+                    <span class="mx-2">•</span>
+                    <span>🔄 Güncelleme: {{ page.updated_at|date:"d F Y" }}</span>
+                {% endif %}
+            </div>
+        </header>
+
+        <div class="page-content">
+            {{ page.content|safe }}
+        </div>
+    </article>
+
+    <!-- Child Pages -->
+    {% if children %}
+    <div class="mt-5 pt-4 border-top">
+        <h3 class="mb-3">Alt Sayfalar</h3>
+        <div class="row g-3">
+            {% for child in children %}
+            <div class="col-md-6">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <a href="{% url 'pages:page_detail' child.slug %}" class="text-decoration-none">
+                                {{ child.title }}
+                            </a>
+                        </h5>
+                        <p class="card-text small text-muted">
+                            {{ child.content|striptags|truncatewords:20 }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Navigation -->
+    <div class="mt-5 pt-4 border-top">
+        <a href="{% url 'pages:page_list' %}" class="btn btn-outline-primary">← Tüm Sayfalar</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block right_sidebar %}
+<!-- Parent Page -->
+{% if page.parent %}
+<div class="widget">
+    <h5>Üst Sayfa</h5>
+    <p class="mb-0">
+        <a href="{% url 'pages:page_detail' page.parent.slug %}" class="text-decoration-none">
+            ↑ {{ page.parent.title }}
+        </a>
+    </p>
+</div>
+{% endif %}
+
+<!-- Sibling Pages -->
+{% if page.parent %}
+    {% with page.parent.get_children as siblings %}
+        {% if siblings.count > 1 %}
+        <div class="widget">
+            <h5>İlgili Sayfalar</h5>
+            <ul class="widget-list">
+                {% for sibling in siblings %}
+                    {% if sibling.slug != page.slug %}
+                        <li><a href="{% url 'pages:page_detail' sibling.slug %}">{{ sibling.title }}</a></li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    {% endwith %}
+{% endif %}
+
+<!-- Table of Contents (if has children) -->
+{% if children %}
+<div class="widget">
+    <h5>Bu Sayfanın İçeriği</h5>
+    <ul class="widget-list">
+        {% for child in children %}
+            <li><a href="{% url 'pages:page_detail' child.slug %}">{{ child.title }}</a></li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% endblock %}

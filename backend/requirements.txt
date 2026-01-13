@@ -1,0 +1,66 @@
+# Django Core
+Django==5.2.5
+djangorestframework==3.16.0
+django-cors-headers==4.7.0
+
+# HTTP Requests
+requests==2.31.0
+
+# Database
+psycopg2-binary==2.9.10
+dj-database-url==2.1.0
+
+# MySQL support (cPanel için opsiyonel)
+# mysqlclient==2.1.1
+
+# Cache & Queue
+redis==5.0.1
+django-redis==5.4.0
+celery==5.3.4
+django-celery-beat==2.8.0
+django_celery_results==2.6.0
+flower==2.0.1
+
+# Server
+gunicorn==21.2.0
+whitenoise==6.8.0
+
+# Environment
+django-environ==0.12.0
+
+# Authentication
+djangorestframework_simplejwt==5.5.0
+django-allauth==65.3.0
+google-auth==2.23.4
+google-auth-oauthlib==1.1.0
+cryptography==42.0.5
+PyJWT[crypto]==2.8.0  # Apple JWT verification için
+
+# File Upload & Storage
+pillow==11.2.1
+django-storages==1.14.2
+
+# Development
+django-debug-toolbar==4.2.0
+
+# Code Quality & Pre-commit
+pre-commit==3.5.0
+black==23.9.1
+isort==5.12.0
+flake8==6.1.0
+bandit==1.7.5
+django-upgrade==1.15.0
+
+# Security
+django-ratelimit==4.1.0
+sentry-sdk[django]==2.15.0
+
+# Admin & Forms
+django-crispy-forms==2.0
+django-summernote==0.8.20.0
+
+# API Documentation
+drf-spectacular==0.26.5
+
+# Filtering
+django-filter==24.3

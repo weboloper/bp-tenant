@@ -1,0 +1,533 @@
+from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.contrib.auth import authenticate
+from django.core.validators import validate_email
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.contrib.auth import get_user_model
+from django.utils.translation import gettext_lazy as _
+from accounts.utils import validate_alphanumeric_username
+from django.contrib.auth.models import update_last_login
+
+# Social Login Serializers - Refactored with BaseSocialAuth
+from accounts.api.social_serializers import (
+    GoogleSocialLoginSerializer,
+    FacebookSocialLoginSerializer,
+    AppleSocialLoginSerializer
+)
+
+User = get_user_model()
+
+
+class UserRegistrationSerializer(serializers.ModelSerializer):
+
+    # Burada DRF'nin default UniqueValidator'ını iptal ediyoruz
+    username = serializers.CharField(
+        required=True,
+        validators=[],
+    )
+    email = serializers.EmailField(
+        required=True,
+        validators=[],
+    )
+    
+    """User registration serializer"""
+    password1 = serializers.CharField(write_only=True, min_length=1)
+    password2 = serializers.CharField(write_only=True, min_length=1)
+    
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password1', 'password2']
+        
+    def validate_username(self, value):
+        username = value.strip()
+        if not username:
+            raise serializers.ValidationError(_('Username is required'))
+        if len(username) < 3:
+            raise serializers.ValidationError(_('Username must be at least 3 characters'))
+        if len(username) > 30:
+            raise serializers.ValidationError(_('Username must be at most 30 characters'))
+        try:
+            validate_alphanumeric_username(username)
+        except ValidationError as e:
+            raise serializers.ValidationError(str(e.message))
+        if User.objects.filter(username=username).exists():
+            raise serializers.ValidationError(_('This username is already taken'))
+        return username
+    
+    def validate_email(self, value):
+        email = value.strip()
+        if not email:
+            raise serializers.ValidationError(_('Email is required'))
+        try:
+            validate_email(email)
+        except ValidationError:
+            raise serializers.ValidationError(_('Enter a valid email address'))
+        if User.objects.filter(email=email).exists():
+            raise serializers.ValidationError(_('This email address is already registered'))
+        return email
+    
+    def validate_password1(self, value):
+        if not value:
+            raise serializers.ValidationError(_('Password is required'))
+        return value
+    
+    def validate_password2(self, value):
+        if not value:
+            raise serializers.ValidationError(_('Password confirmation is required'))
+        return value
+    
+    def validate(self, attrs):
+        password1 = attrs.get('password1')
+        password2 = attrs.get('password2')
+        username = attrs.get('username')
+        email = attrs.get('email')
+        
+        if password1 and password2:
+            if password1 != password2:
+                raise serializers.ValidationError({'password2': _('Passwords do not match')})
+        
+        if password1 and username and email:
+            temp_user = User(username=username, email=email)
+            try:
+                validate_password(password1, temp_user)
+            except ValidationError as e:
+                raise serializers.ValidationError({'password1': ' '.join(e.messages)})
+        return attrs
+    
+    def create(self, validated_data):
+        validated_data.pop('password2')
+        password = validated_data.pop('password1')
+        user = User.objects.create_user(password=password, **validated_data)
+        return user
+
+
+class PasswordResetSerializer(serializers.Serializer):
+    """Password reset request serializer"""
+    email = serializers.EmailField(required=True)
+    
+    def validate_email(self, value):
+        email = value.strip()
+        if not email:
+            raise serializers.ValidationError(_('Email address is required'))
+        return email
+    
+    def get_user(self):
+        email = self.validated_data.get('email')
+        try:
+            return User.objects.get(email=email)
+        except User.DoesNotExist:
+            return None
+
+
+class PasswordSetSerializer(serializers.Serializer):
+    """
+    Password set serializer for social login users
+    Does not require current password
+    """
+    new_password1 = serializers.CharField(write_only=True, required=True)
+    new_password2 = serializers.CharField(write_only=True, required=True)
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+    def validate_new_password1(self, value):
+        if not value:
+            raise serializers.ValidationError(_('New password is required'))
+        if self.user:
+            try:
+                validate_password(value, self.user)
+            except ValidationError as e:
+                raise serializers.ValidationError(' '.join(e.messages))
+        return value
+
+    def validate_new_password2(self, value):
+        if not value:
+            raise serializers.ValidationError(_('New password confirmation is required'))
+        return value
+
+    def validate(self, attrs):
+        new_password1 = attrs.get('new_password1')
+        new_password2 = attrs.get('new_password2')
+
+        if new_password1 and new_password2:
+            if new_password1 != new_password2:
+                raise serializers.ValidationError({'new_password2': _('Passwords do not match')})
+        return attrs
+
+    def save(self):
+        if not self.user:
+            raise serializers.ValidationError('User not provided')
+        new_password = self.validated_data['new_password1']
+        self.user.set_password(new_password)
+        self.user.save()
+        return self.user
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    """
+    Password change serializer for users with existing password
+    Requires current password
+    """
+    current_password = serializers.CharField(write_only=True, required=True)
+    new_password1 = serializers.CharField(write_only=True, required=True)
+    new_password2 = serializers.CharField(write_only=True, required=True)
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+    def validate_current_password(self, value):
+        if not value:
+            raise serializers.ValidationError(_('Current password is required'))
+        if self.user and not self.user.check_password(value):
+            raise serializers.ValidationError(_('Current password is incorrect'))
+        return value
+
+    def validate_new_password1(self, value):
+        if not value:
+            raise serializers.ValidationError(_('New password is required'))
+        if self.user:
+            try:
+                validate_password(value, self.user)
+            except ValidationError as e:
+                raise serializers.ValidationError(' '.join(e.messages))
+        return value
+
+    def validate_new_password2(self, value):
+        if not value:
+            raise serializers.ValidationError(_('New password confirmation is required'))
+        return value
+
+    def validate(self, attrs):
+        new_password1 = attrs.get('new_password1')
+        new_password2 = attrs.get('new_password2')
+        current_password = attrs.get('current_password')
+
+        if new_password1 and new_password2:
+            if new_password1 != new_password2:
+                raise serializers.ValidationError({'new_password2': _('New passwords do not match')})
+
+        if current_password and new_password1:
+            if current_password == new_password1:
+                raise serializers.ValidationError({'new_password1': _('New password cannot be the same as current password')})
+        return attrs
+
+    def save(self):
+        if not self.user:
+            raise serializers.ValidationError('User not provided')
+        new_password = self.validated_data['new_password1']
+        self.user.set_password(new_password)
+        self.user.save()
+        return self.user
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Custom JWT token serializer that accepts both username and email"""
+    username_field = 'username'
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['username'].help_text = _('Enter your username or email address')
+    
+    def validate(self, attrs):
+        username_or_email = attrs.get('username')
+        password = attrs.get('password')
+        
+        if not username_or_email or not password:
+            raise serializers.ValidationError(_('Username/email and password are required'))
+        
+        username_to_authenticate = username_or_email
+        
+        if '@' in username_or_email:
+            try:
+                validate_email(username_or_email)
+                try:
+                    user_obj = User.objects.get(email__iexact=username_or_email)
+                    username_to_authenticate = user_obj.username
+                except User.DoesNotExist:
+                    raise serializers.ValidationError(_('No user found with this email address'))
+            except ValidationError:
+                raise serializers.ValidationError(_('Enter a valid email address'))
+        
+        user = authenticate(
+            request=self.context.get('request'),
+            username=username_to_authenticate,
+            password=password
+        )
+        
+        if user is None:
+            if '@' in username_or_email:
+                raise serializers.ValidationError(_('Email or password is incorrect'))
+            else:
+                raise serializers.ValidationError(_('Username or password is incorrect'))
+        
+        if not user.is_active:
+            raise serializers.ValidationError(_('Your account has been disabled'))
+        
+        # if not user.is_verified:
+        #     raise serializers.ValidationError('Hesabınız henüz doğrulanmamış. Email adresinizi kontrol edin.')
+        
+        update_last_login(None, user)  # last_login güncelle
+        refresh = self.get_token(user)
+        
+        data = {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }
+        
+        return data
+
+
+class UsernameChangeSerializer(serializers.Serializer):
+    """Username change serializer"""
+    current_password = serializers.CharField(write_only=True, required=True)
+    new_username = serializers.CharField(max_length=30, required=True)
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+    
+    def validate_current_password(self, value):
+        if not value:
+            raise serializers.ValidationError(_('Enter your current password'))
+        if self.user and not self.user.check_password(value):
+            raise serializers.ValidationError(_('Current password is incorrect'))
+        return value
+    
+    def validate_new_username(self, value):
+        new_username = value.strip()
+        if not new_username:
+            raise serializers.ValidationError(_('New username is required'))
+        if len(new_username) < 3:
+            raise serializers.ValidationError('Kullanıcı adı en az 3 karakter olmalı')
+        if len(new_username) > 30:
+            raise serializers.ValidationError('Kullanıcı adı en fazla 30 karakter olabilir')
+        if self.user and new_username.lower() == self.user.username.lower():
+            raise serializers.ValidationError(_('New username cannot be the same as current username'))
+        try:
+            validate_alphanumeric_username(new_username)
+        except ValidationError as e:
+            raise serializers.ValidationError(str(e.message))
+        if User.objects.filter(username__iexact=new_username).exists():
+            raise serializers.ValidationError('Bu kullanıcı adı zaten alınmış')
+        return new_username
+    
+    def save(self):
+        if not self.user:
+            raise serializers.ValidationError('User not provided')
+        new_username = self.validated_data['new_username']
+        self.user.username = new_username
+        self.user.save()
+        return self.user
+
+
+class EmailChangeSerializer(serializers.Serializer):
+    """Email change serializer"""
+    current_password = serializers.CharField(write_only=True, required=True)
+    new_email = serializers.EmailField(required=True)
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+    
+    def validate_current_password(self, value):
+        if not value:
+            raise serializers.ValidationError(_('Enter your current password'))
+        if self.user and not self.user.check_password(value):
+            raise serializers.ValidationError(_('Current password is incorrect'))
+        return value
+    
+    def validate_new_email(self, value):
+        new_email = value.strip().lower()
+        if not new_email:
+            raise serializers.ValidationError(_('New email address is required'))
+        if self.user and new_email == self.user.email.lower():
+            raise serializers.ValidationError(_('New email address cannot be the same as current email'))
+        if User.objects.filter(email__iexact=new_email).exists():
+            raise serializers.ValidationError(_('This email address is already in use'))
+        return new_email
+
+
+class ProfileUpdateSerializer(serializers.Serializer):
+    """Profile update serializer"""
+    first_name = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    bio = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    birth_date = serializers.DateField(required=False, allow_null=True)
+    avatar = serializers.ImageField(required=False, allow_null=True)
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+    
+    def validate_first_name(self, value):
+        first_name = value.strip() if value else ''
+        if len(first_name) > 30:
+            raise serializers.ValidationError(_('First name must be at most 30 characters'))
+        return first_name
+    
+    def validate_last_name(self, value):
+        last_name = value.strip() if value else ''
+        if len(last_name) > 30:
+            raise serializers.ValidationError(_('Last name must be at most 30 characters'))
+        return last_name
+    
+    def validate_bio(self, value):
+        bio = value.strip() if value else ''
+        if len(bio) > 500:
+            raise serializers.ValidationError(_('Bio must be at most 500 characters'))
+        return bio
+    
+    def save(self):
+        if not self.user:
+            raise serializers.ValidationError('User not provided')
+
+        from accounts.models import Profile
+        # Signal should have created profile, but use get_or_create to be safe
+        profile, created = Profile.objects.get_or_create(user=self.user)
+
+        # Update profile fields
+        if 'first_name' in self.validated_data:
+            profile.first_name = self.validated_data['first_name']
+        if 'last_name' in self.validated_data:
+            profile.last_name = self.validated_data['last_name']
+        if 'bio' in self.validated_data:
+            profile.bio = self.validated_data['bio']
+        if 'birth_date' in self.validated_data:
+            profile.birth_date = self.validated_data['birth_date']
+        if 'avatar' in self.validated_data:
+            profile.avatar = self.validated_data['avatar']
+
+        profile.save()
+        return self.user
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """Password reset confirm serializer"""
+    password1 = serializers.CharField(write_only=True, min_length=1)
+    password2 = serializers.CharField(write_only=True, min_length=1)
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+    
+    def validate_password1(self, value):
+        if not value:
+            raise serializers.ValidationError(_('New password is required'))
+        if self.user:
+            try:
+                validate_password(value, self.user)
+            except ValidationError as e:
+                raise serializers.ValidationError(' '.join(e.messages))
+        return value
+    
+    def validate_password2(self, value):
+        if not value:
+            raise serializers.ValidationError(_('Password confirmation is required'))
+        return value
+    
+    def validate(self, attrs):
+        password1 = attrs.get('password1')
+        password2 = attrs.get('password2')
+        if password1 and password2:
+            if password1 != password2:
+                raise serializers.ValidationError({'password2': _('Passwords do not match')})
+        return attrs
+    
+    def save(self):
+        if not self.user:
+            raise serializers.ValidationError('User not provided')
+        password = self.validated_data['password1']
+        self.user.set_password(password)
+        self.user.save()
+        return self.user
+
+
+class EmailVerificationResendSerializer(serializers.Serializer):
+    """Email verification resend serializer"""
+    email = serializers.EmailField(required=True)
+
+    def validate_email(self, value):
+        email = value.strip()
+        if not email:
+            raise serializers.ValidationError(_('Email address is required'))
+        return email
+
+    def get_user(self):
+        email = self.validated_data.get('email')
+        try:
+            return User.objects.get(email=email)
+        except User.DoesNotExist:
+            return None
+
+
+class UserProfileSerializer(serializers.Serializer):
+    """User profile serializer for returning profile data"""
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+    birth_date = serializers.DateField()
+    bio = serializers.CharField()
+    avatar = serializers.SerializerMethodField()
+    updated_at = serializers.DateTimeField()
+
+    def get_avatar(self, obj):
+        """Return full URL for avatar"""
+        if obj.avatar:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.avatar.url)
+            # Fallback to just the URL if request is not available
+            return obj.avatar.url
+        return None
+
+
+class MeMinimalProfileSerializer(serializers.Serializer):
+    """Minimal profile serializer for /me/ endpoint - only essential UI fields"""
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+    avatar = serializers.SerializerMethodField()
+    updated_at = serializers.DateTimeField()
+
+    def get_avatar(self, obj):
+        """Return full URL for avatar"""
+        if obj.avatar:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.avatar.url)
+            return obj.avatar.url
+        return None
+
+
+class ProfileDetailSerializer(serializers.Serializer):
+    """Detailed profile serializer for /me/profile/ endpoint - all profile fields"""
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+    birth_date = serializers.DateField()
+    bio = serializers.CharField()
+    avatar = serializers.SerializerMethodField()
+    updated_at = serializers.DateTimeField()
+
+    def get_avatar(self, obj):
+        """Return full URL for avatar"""
+        if obj.avatar:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.avatar.url)
+            return obj.avatar.url
+        return None
+
+
+class MeSerializer(serializers.Serializer):
+    """Me endpoint serializer for current user data - minimal response for navbar/UI"""
+    id = serializers.IntegerField()
+    username = serializers.CharField()
+    email = serializers.EmailField()
+    is_active = serializers.BooleanField()
+    is_staff = serializers.BooleanField()
+    is_verified = serializers.BooleanField()
+    has_password = serializers.BooleanField()
+    date_joined = serializers.DateTimeField()
+    last_login = serializers.DateTimeField()
+    profile = MeMinimalProfileSerializer()

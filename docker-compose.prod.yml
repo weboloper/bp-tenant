@@ -1,0 +1,168 @@
+# Production environment için .env.prod dosyasını kullan
+
+services:
+  # PostgreSQL Database (Optional - use if not using managed DB)
+  postgres:
+    image: postgres:15-alpine
+    container_name: bp_postgres_prod
+    env_file:
+      - .env.prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bp_prod_db}
+      POSTGRES_USER: ${POSTGRES_USER:-bp_prod_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bp_prod_secure_password}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    # Only start if DATABASE_URL points to container
+    profiles:
+      - postgres
+
+  # Redis Cache & Celery Broker
+  redis:
+    image: redis:7-alpine
+    container_name: bp_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # Django Backend
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bp_backend
+    command: gunicorn --bind 0.0.0.0:8000 config.wsgi:application --workers=4 --timeout=120 --max-requests=1000
+    env_file:
+      - .env.prod
+    volumes:
+      - ./backend:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    expose:
+      - "8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}  # External managed DB or override
+      - REDIS_URL=redis://redis:6379/0
+      - DJANGO_ENV=production
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Celery Worker
+  celery:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bp_celery
+    command: celery -A config worker -l info --concurrency=2 --max-tasks-per-child=1000
+    env_file:
+      - .env.prod
+    volumes:
+      - ./backend:/app
+      - media_volume:/app/media
+    environment:
+      - DATABASE_URL=${DATABASE_URL}  # External managed DB or override
+      - REDIS_URL=redis://redis:6379/0
+      - DJANGO_ENV=production
+    depends_on:
+      - redis
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "celery", "-A", "config", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Celery Beat
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bp_celery_beat
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file:
+      - .env.prod
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=${DATABASE_URL}  # External managed DB or override
+      - REDIS_URL=redis://redis:6379/0
+      - DJANGO_ENV=production
+    depends_on:
+      - redis
+      - backend
+    restart: unless-stopped
+
+  # Caddy Web Server (Production)
+  caddy:
+    image: caddy:2-alpine
+    container_name: bp_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile.prod:/etc/caddy/Caddyfile
+      - static_volume:/static
+      - media_volume:/media
+      - caddy_data:/data
+      - caddy_config:/config
+    env_file:
+      - .env.prod
+    depends_on:
+      - backend
+
+  # SSL artık Caddy tarafından otomatik olarak halleediliyor
+  # Certbot container'ına gerek yok!
+
+  # Flower for Celery Monitoring (Production)
+  flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bp_flower_prod
+    command: celery -A config flower --port=5555 --basic_auth=admin:${FLOWER_PASSWORD:-secure123}
+    env_file:
+      - .env.prod
+    # Port'u expose etme - sadece internal network
+    expose:
+      - "5555"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://redis:6379/0
+      - DJANGO_ENV=production
+    depends_on:
+      - redis
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_prod_data:
+    driver: local
+  redis_data:
+    driver: local
+  static_volume:
+    driver: local
+  media_volume:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+
+networks:
+  default:
+    name: bp_network
+    driver: bridge

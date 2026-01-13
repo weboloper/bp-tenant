@@ -1,0 +1,103 @@
+{% extends 'accounts/settings_base.html' %}
+
+{% block settings_content %}
+<h4 class="mb-1">Profil Güncelle</h4>
+<p class="text-muted small mb-4">Kişisel bilgilerinizi ve profil detaylarınızı düzenleyin</p>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    
+    <h5 class="mb-3 small fw-bold text-uppercase text-muted">Kişisel Bilgiler</h5>
+    
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label for="first_name" class="form-label small">Ad</label>
+            <input type="text"
+                   class="form-control {% if form.first_name.errors %}is-invalid{% endif %}"
+                   id="first_name"
+                   name="first_name"
+                   value="{{ form.first_name.value|default:'' }}"
+                   maxlength="30">
+            {% if form.first_name.errors %}
+                <div class="invalid-feedback">
+                    {% for error in form.first_name.errors %}{{ error }}{% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <label for="last_name" class="form-label small">Soyad</label>
+            <input type="text"
+                   class="form-control {% if form.last_name.errors %}is-invalid{% endif %}"
+                   id="last_name"
+                   name="last_name"
+                   value="{{ form.last_name.value|default:'' }}"
+                   maxlength="30">
+            {% if form.last_name.errors %}
+                <div class="invalid-feedback">
+                    {% for error in form.last_name.errors %}{{ error }}{% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <label for="birth_date" class="form-label small">Doğum Tarihi</label>
+        <input type="date"
+               class="form-control {% if form.birth_date.errors %}is-invalid{% endif %}"
+               id="birth_date"
+               name="birth_date"
+               value="{{ form.birth_date.value|default:'' }}">
+        {% if form.birth_date.errors %}
+            <div class="invalid-feedback">
+                {% for error in form.birth_date.errors %}{{ error }}{% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <hr class="my-4">
+    
+    <h5 class="mb-3 small fw-bold text-uppercase text-muted">Profil Detayları</h5>
+
+    <div class="mb-3">
+        <label for="avatar" class="form-label small">Profil Resmi</label>
+        {% if user.profile.avatar %}
+            <div class="mb-2">
+                <img src="{{ user.profile.avatar.url }}" alt="Mevcut Avatar" class="rounded" style="width: 80px; height: 80px; object-fit: cover;">
+            </div>
+        {% endif %}
+        <input type="file"
+               class="form-control {% if form.avatar.errors %}is-invalid{% endif %}"
+               id="avatar"
+               name="avatar"
+               accept="image/*">
+        {% if form.avatar.errors %}
+            <div class="invalid-feedback">
+                {% for error in form.avatar.errors %}{{ error }}{% endfor %}
+            </div>
+        {% endif %}
+        <div class="form-text">JPG, PNG formatları desteklenir. Max boyut: 5MB</div>
+    </div>
+
+    <div class="mb-4">
+        <label for="bio" class="form-label small">Hakkımda</label>
+        <textarea class="form-control {% if form.bio.errors %}is-invalid{% endif %}"
+                  id="bio"
+                  name="bio"
+                  rows="4"
+                  maxlength="500"
+                  placeholder="Kendiniz hakkında kısa bilgi...">{{ form.bio.value|default:'' }}</textarea>
+        {% if form.bio.errors %}
+            <div class="invalid-feedback">
+                {% for error in form.bio.errors %}{{ error }}{% endfor %}
+            </div>
+        {% endif %}
+        <div class="form-text">Maksimum 500 karakter</div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <a href="{% url 'accounts:profile' %}" class="btn btn-secondary">İptal</a>
+        <button type="submit" class="btn btn-primary">Profili Güncelle</button>
+    </div>
+</form>
+{% endblock %}

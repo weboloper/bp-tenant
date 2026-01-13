@@ -1,0 +1,34 @@
+{% extends 'accounts/auth_base.html' %}
+
+{% block sidebar_icon %}{% if validlink %}✅{% else %}❌{% endif %}{% endblock %}
+{% block sidebar_title %}Email Değişikliği{% endblock %}
+{% block sidebar_description %}{% if validlink %}Email adresiniz güncellendi{% else %}Doğrulama başarısız oldu{% endif %}{% endblock %}
+
+{% block auth_content %}
+<h4 class="mb-3">Email Değişiklik Onayı</h4>
+
+{% if validlink %}
+    <div class="alert alert-success py-2">
+        <h6 class="alert-heading mb-1">✅ Email Başarıyla Değiştirildi!</h6>
+        <p class="mb-1 small">Email adresiniz <strong>{{ old_email }}</strong> adresinden <strong>{{ new_email }}</strong> adresine başarıyla değiştirildi.</p>
+        <p class="mb-0 small">Artık yeni email adresinizle giriş yapabilirsiniz.</p>
+    </div>
+    
+    <div class="d-grid mb-3">
+        <a href="{% url 'accounts:login' %}" class="btn btn-primary">Giriş Yap</a>
+    </div>
+{% else %}
+    <div class="alert alert-danger py-2">
+        <h6 class="alert-heading mb-1">❌ Geçersiz Link</h6>
+        <p class="mb-0 small">Email değişiklik linki geçersiz, süresi dolmuş veya zaten kullanılmış.</p>
+    </div>
+    
+    <div class="d-grid mb-3">
+        <a href="{% url 'accounts:email_change' %}" class="btn btn-primary">Yeni Talep Oluştur</a>
+    </div>
+{% endif %}
+
+<div class="text-center small">
+    <a href="{% url 'accounts:profile' %}">Profile git</a>
+</div>
+{% endblock %}

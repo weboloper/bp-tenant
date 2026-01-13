@@ -1,0 +1,162 @@
+# Development environment için .env dosyasını kullan
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: bp_postgres
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bp_db}
+      POSTGRES_USER: ${POSTGRES_USER:-bp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bp_pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  # Redis Cache & Celery Broker
+  redis:
+    image: redis:7-alpine
+    container_name: bp_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # Django Backend
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bp_backend
+    command: gunicorn --bind 0.0.0.0:8000 config.wsgi:application --workers=3
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    expose:
+      - "8000"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-bp_user}:${POSTGRES_PASSWORD:-bp_pass}@postgres:5432/${POSTGRES_DB:-bp_db}
+      - REDIS_URL=redis://redis:6379/0
+      - DJANGO_ENV=development
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  # Celery Worker
+  celery:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bp_celery
+    command: celery -A config worker -l info
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-bp_user}:${POSTGRES_PASSWORD:-bp_pass}@postgres:5432/${POSTGRES_DB:-bp_db}
+      - REDIS_URL=redis://redis:6379/0
+      - DJANGO_ENV=development
+    depends_on:
+      - postgres
+      - redis
+      - backend
+    restart: unless-stopped
+
+  # Celery Beat (Zamanlanmış görevler)
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bp_celery_beat
+    command: celery -A config beat -l info
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-bp_user}:${POSTGRES_PASSWORD:-bp_pass}@postgres:5432/${POSTGRES_DB:-bp_db}
+      - REDIS_URL=redis://redis:6379/0
+      - DJANGO_ENV=development
+    depends_on:
+      - postgres
+      - redis
+      - backend
+    restart: unless-stopped
+
+  # Caddy Web Server
+  caddy:
+    image: caddy:2-alpine
+    container_name: bp_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile.dev:/etc/caddy/Caddyfile
+      - static_volume:/static
+      - media_volume:/media
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+
+  # pgAdmin for Database Management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: bp_pgadmin
+    env_file:
+      - .env
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@bp.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin123}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  # Flower for Celery Monitoring
+  flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bp_flower
+    command: celery -A config flower --port=5555
+    env_file:
+      - .env
+    ports:
+      - "5555:5555"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-bp_user}:${POSTGRES_PASSWORD:-bp_pass}@postgres:5432/${POSTGRES_DB:-bp_db}
+      - REDIS_URL=redis://redis:6379/0
+      - DJANGO_ENV=development
+    depends_on:
+      - redis
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  static_volume:
+  media_volume:
+  pgadmin_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  default:
+    name: bp_network
