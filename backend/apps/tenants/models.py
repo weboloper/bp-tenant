@@ -39,9 +39,10 @@ class Company(SoftDeleteMixin, TimestampMixin, models.Model):
     name = models.CharField(max_length=255, verbose_name=_("Company Name"))
     business_type = models.ForeignKey(
         BusinessType,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         verbose_name=_("Business Type"),
-        related_name='companies'
+        related_name='companies',
+        help_text=_("Business type cannot be deleted if companies are using it")
     )
     description = models.TextField(
         blank=True,
