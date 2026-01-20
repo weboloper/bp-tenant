@@ -1,7 +1,15 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
-from .models import Company, Employee, CompanyRolePermission, Product
+from .models import BusinessType, Company, Employee, CompanyRolePermission, Product
+
+
+@admin.register(BusinessType)
+class BusinessTypeAdmin(admin.ModelAdmin):
+    list_display = ['name', 'icon', 'is_active', 'order', 'created_at']
+    list_filter = ['is_active']
+    search_fields = ['name']
+    ordering = ['order', 'name']
 
 
 @admin.register(Company)

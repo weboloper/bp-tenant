@@ -1,12 +1,6 @@
 from django.contrib import admin
-from .models import BusinessType, GlobalSettings
+from .models import GlobalSettings
 
-@admin.register(BusinessType)
-class BusinessTypeAdmin(admin.ModelAdmin):
-    list_display = ['name', 'icon', 'is_active', 'order', 'created_at']
-    list_filter = ['is_active']
-    search_fields = ['name']
-    ordering = ['order', 'name']
 
 @admin.register(GlobalSettings)
 class GlobalSettingsAdmin(admin.ModelAdmin):

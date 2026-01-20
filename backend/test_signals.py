@@ -9,8 +9,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
 from accounts.models import User
-from core.models import BusinessType
-from tenants.models import Company, Role, RolePermission, Permission
+from tenants.models import BusinessType, Company, Role, RolePermission, Permission
 
 print("=" * 60)
 print("Testing Company Creation with Auto-Role Setup")

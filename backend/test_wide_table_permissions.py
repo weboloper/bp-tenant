@@ -9,8 +9,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
 from accounts.models import User
-from core.models import BusinessType
-from tenants.models import Company, CompanyRolePermission, RoleLevel
+from tenants.models import BusinessType, Company, CompanyRolePermission, RoleLevel
 
 print("=" * 60)
 print("Testing Company Creation with Wide Table Permissions")

@@ -3,34 +3,6 @@ from django.utils.translation import gettext_lazy as _
 from django.core.cache import cache
 
 
-class BusinessType(models.Model):
-    """
-    Kuaför, Berber, Güzellik Merkezi gibi işletme türleri.
-    Tenant oluşturulurken seçilir. (Eski system/models.py'den taşındı)
-    """
-    name = models.CharField(_("Name"), max_length=255)
-    description = models.TextField(_("Description"), blank=True, null=True)
-    icon = models.CharField(
-        _("Icon"),
-        max_length=50,
-        blank=True,
-        help_text=_("Icon name or CSS class (e.g., 'salon', 'barbershop')")
-    )
-    is_active = models.BooleanField(_("Is Active"), default=True)
-    order = models.IntegerField(_("Order"), default=0)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = _("Business Type")
-        verbose_name_plural = _("Business Types")
-        ordering = ["order", "name"]
-
-    def __str__(self):
-        return self.name
-
-
 class GlobalSettings(models.Model):
     """
     Sistem genelindeki ayarlar (Singleton Pattern).
