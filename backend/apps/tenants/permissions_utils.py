@@ -260,9 +260,14 @@ def check_permission(user, permission_field, company=None):
 
     Logic:
     1. If user is superuser → True (bypass all checks)
-    2. If user is owner of the company → True (owner has all permissions)
-    3. If user is employee → check CompanyRolePermission
-    4. Otherwise → False
+    2. Check plan-based feature restriction (if applicable)
+    3. If user is owner of the company → True (owner has all permissions)
+    4. If user is employee → check CompanyRolePermission
+    5. Otherwise → False
+
+    Note:
+        Some permissions require specific plan features. See tenants/constants.py
+        for FEATURE_RESTRICTED_PERMISSIONS mapping.
 
     Usage:
         if check_permission(request.user, 'can_view_all_calendars'):
@@ -271,6 +276,7 @@ def check_permission(user, permission_field, company=None):
             # Show only own calendar
     """
     from tenants.models import CompanyRolePermission
+    from tenants.constants import FEATURE_RESTRICTED_PERMISSIONS
 
     if not user or not user.is_authenticated:
         return False
@@ -286,7 +292,13 @@ def check_permission(user, permission_field, company=None):
     if not company:
         return False
 
-    # Owner has all permissions
+    # Check plan-based feature restriction
+    if permission_field in FEATURE_RESTRICTED_PERMISSIONS:
+        required_feature = FEATURE_RESTRICTED_PERMISSIONS[permission_field]
+        if not _check_plan_feature(company, required_feature):
+            return False  # Plan doesn't include this feature
+
+    # Owner has all permissions (that pass plan check)
     if company.is_owner(user):
         return True
 
@@ -302,6 +314,28 @@ def check_permission(user, permission_field, company=None):
         )
         return getattr(perms, permission_field, False)
     except CompanyRolePermission.DoesNotExist:
+        return False
+
+
+def _check_plan_feature(company, feature_name):
+    """
+    Check if company's subscription plan includes a specific feature.
+
+    Args:
+        company: Company instance
+        feature_name: Feature key to check (e.g., 'advanced_analytics')
+
+    Returns:
+        Boolean - True if plan has the feature, False otherwise
+    """
+    try:
+        from tenant_subscriptions.models import TenantSubscription
+        subscription = TenantSubscription.objects.select_related('plan').get(
+            tenant=company,
+            status='active'
+        )
+        return subscription.plan.has_feature(feature_name)
+    except TenantSubscription.DoesNotExist:
         return False
 
 

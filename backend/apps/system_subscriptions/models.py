@@ -58,6 +58,13 @@ class SubscriptionPlan(models.Model):
         help_text=_("Format: {'custom_roles': bool, 'automation': bool, 'advanced_reports': bool, 'api_access': bool, 'google_calendar': bool, 'reserve_with_google': bool, 'sms_notifications': bool, 'email_notifications': bool}")
     )
 
+    # Welcome bonus for new tenants subscribing to this plan
+    welcome_sms_bonus = models.PositiveIntegerField(
+        default=100,
+        verbose_name=_("Welcome SMS Bonus"),
+        help_text=_("SMS credits given to new tenants when they start with this plan")
+    )
+
     is_active = models.BooleanField(
         default=True,
         verbose_name=_("Is Active")

@@ -39,15 +39,15 @@ class GlobalSettings(models.Model):
     maintenance_mode = models.BooleanField(_("Maintenance Mode"), default=False)
     support_email = models.EmailField(_("Support Email"), blank=True)
     system_currency = models.CharField(_("System Currency"), max_length=3, default="TRY")
-    
+
     # İletişim & Sosyal
     contact_phone = models.CharField(_("Contact Phone"), max_length=20, blank=True)
     website_url = models.URLField(_("Website URL"), blank=True)
-    
+
     # Yasal
     terms_url = models.URLField(_("Terms & Conditions URL"), blank=True)
     privacy_url = models.URLField(_("Privacy Policy URL"), blank=True)
-    
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
