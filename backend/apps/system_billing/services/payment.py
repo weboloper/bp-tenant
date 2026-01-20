@@ -4,8 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from decimal import Decimal
 
 from system_billing.models import Payment, Invoice
-from tenant_subscriptions.services import SubscriptionService
-from tenant_resources.services import SmsService
+from tenant_subscriptions.services import SubscriptionService, SmsService
 from system_subscriptions.models import SubscriptionPlan, SMSPackage
 
 

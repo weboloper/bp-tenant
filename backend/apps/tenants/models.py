@@ -3,7 +3,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.translation import gettext_lazy as _
-from system.models import BusinessType
+from core.models import BusinessType
 from core.mixins import SoftDeleteMixin, TimestampMixin, TenantAwareMixin
 from core.managers import SoftDeleteManager, TenantAwareManager
 

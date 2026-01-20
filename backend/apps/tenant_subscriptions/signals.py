@@ -4,11 +4,11 @@ from django.utils import timezone
 from datetime import timedelta
 from tenants.models import Company
 from system_subscriptions.models import SubscriptionPlan
-from .models import TenantSubscription
+from .models import TenantSubscription, SmsBalance
 
 
 @receiver(post_save, sender=Company)
-def create_default_subscription(sender, instance, created, **kwargs):
+def create_default_subscription_and_sms_balance(sender, instance, created, **kwargs):
     """
     Automatically create default subscription for new companies
     """
@@ -38,4 +38,10 @@ def create_default_subscription(sender, instance, created, **kwargs):
             original_price=default_plan.price,
             discounted_price=default_plan.price,
             notes='Automatically created trial subscription'
+        )
+
+        # Create SMS balance for the company
+        SmsBalance.objects.get_or_create(
+            tenant=instance,
+            defaults={'balance': 0}
         )

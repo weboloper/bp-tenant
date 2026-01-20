@@ -36,99 +36,23 @@ app_name/
 
 ## Serializer Pattern
 
-### 3-Katmanl1 Serializer Yap1s1
+### Standart Serializer Yapısı
 
-Her model için **3 farkl1 serializer** olu_turulmal1d1r:
+Projede sadelik ve bakım kolaylığı için, her model için **tek bir ana Serializer** kullanılması önerilir.
 
-#### 1. **BasicSerializer** - Nested Kullan1mlar 0çin
-
-```python
-class ModelNameBasicSerializer(serializers.ModelSerializer):
-    """Basic serializer for ModelName (used in nested representations)."""
-
-    class Meta:
-        model = ModelName
-        fields = ['id', 'name', 'slug', 'created_at', 'updated_at']
-        read_only_fields = ['slug', 'created_at', 'updated_at']
-```
-
-**Kullan1m Amac1:**
-
-- 0ç içe (nested) reprezentasyonlarda kullan1l1r
-- Circular reference'lar1 önler
-- Minimal veri içerir (sadece temel bilgiler)
-
-**Ne zaman kullan1l1r:**
-
-- Ba_ka bir modelin detail view'1nda nested olarak gösterilecekse
-- 0li_kili verileri gösterirken sonsuz döngüyü engellemek için
-
-#### 2. **Serializer** - CRUD Operasyonlar1 0çin
+#### 1. **ModelNameSerializer** - Genel Kullanım
 
 ```python
 class ModelNameSerializer(serializers.ModelSerializer):
-    """Serializer for ModelName model."""
+    """Standard serializer for ModelName."""
 
     # Read-only computed fields
-    related_name = serializers.CharField(source='related.name', read_only=True)
-    items_count = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
 
     class Meta:
         model = ModelName
-        fields = [
-            'id', 'name', 'slug', 'description',
-            'related', 'related_name', 'items_count',
-            'created_at', 'updated_at'
-        ]
-        read_only_fields = ['slug', 'created_at', 'updated_at']
-
-    def get_items_count(self, obj):
-        """Get count of related items."""
-        return obj.items.count()
-
-    def validate_field_name(self, value):
-        """Validate specific field."""
-        if not value:
-            raise serializers.ValidationError("Field cannot be empty.")
-        return value
-
-    def validate(self, attrs):
-        """Cross-field validation."""
-        # Custom validation logic
-        return attrs
-```
-
-**Kullan1m Amac1:**
-
-- List, Create, Update, Delete operasyonlar1nda kullan1l1r
-- Tüm fieldlar1 içerir
-- Computed fields (count, vs.) içerebilir
-- Nested data içermez (performans için)
-
-**Ne zaman kullan1l1r:**
-
-- `GET /api/model-names/` - Liste görünümü
-- `POST /api/model-names/` - Yeni kay1t olu_turma
-- `PUT/PATCH /api/model-names/{id}/` - Güncelleme
-
-#### 3. **DetailSerializer** - Tek Kay1t Detay1 0çin
-
-```python
-class ModelNameDetailSerializer(ModelNameSerializer):
-    """Detailed serializer for ModelName with nested relationships."""
-
-    related_items = serializers.SerializerMethodField()
-
-    class Meta(ModelNameSerializer.Meta):
-        fields = ModelNameSerializer.Meta.fields + ['related_items']
-
-    def get_related_items(self, obj):
-        """Get related items with basic serializer."""
-        from .serializers import RelatedItemBasicSerializer
-        return RelatedItemBasicSerializer(
-            obj.related_items.filter(is_active=True),
-            many=True
-        ).data
+        fields = '__all__'
+        read_only_fields = ['id', 'created_at', 'updated_at']
 ```
 
 **Kullan1m Amac1:**

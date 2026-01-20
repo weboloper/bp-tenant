@@ -9,7 +9,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
 from accounts.models import User
-from system.models import BusinessType
+from core.models import BusinessType
 from tenants.models import Company, Role, RolePermission, Permission
 
 print("=" * 60)

@@ -108,7 +108,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
+
     # Third party apps
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
@@ -118,15 +118,18 @@ INSTALLED_APPS = [
     'django_summernote',
     'django_filters',
     'drf_spectacular',
-    
+
     # Local apps
     'core',
     'accounts',
-    'system',
+    'providers',
+    'communications',
+    'system_subscriptions',
+    'tenant_subscriptions',
+    'system_billing',
     'tenants',
     'pages',
     'posts',
-
 ]
 
 # Static Files Handler - defaults to 'django' in DEBUG mode, 'caddy' in production
@@ -635,3 +638,42 @@ SUMMERNOTE_CONFIG = {
         ]
     },
 }
+
+# ========================================
+# PAYMENT GATEWAY SETTINGS
+# ========================================
+
+# iyzico Payment Gateway
+IYZICO_API_KEY = env('IYZICO_API_KEY', default='sandbox-api-key')
+IYZICO_SECRET_KEY = env('IYZICO_SECRET_KEY', default='sandbox-secret-key')
+IYZICO_TEST_MODE = env.bool('IYZICO_TEST_MODE', default=DEBUG)  # Sandbox mode in development
+# Frontend URL (for payment callbacks and redirects)
+FRONTEND_URL = env('FRONTEND_URL', default='http://localhost:3000')
+
+# ========================================
+# NOTIFICATION & MESSAGING SETTINGS
+# ========================================
+
+# Notification Channels (in-app, email, push)
+NOTIFICATION_CHANNELS = ['in_app', 'email', 'push']
+
+# Messaging (SMS/WhatsApp/Telegram)
+SMS_PROVIDER = env('SMS_PROVIDER', default='mock')  # 'netgsm' or 'mock'
+USE_MOCK_SMS = env.bool('USE_MOCK_SMS', default=DEBUG)  # Use mock in development
+
+# NetGSM Configuration (for Turkey)
+NETGSM_CONFIG = {
+    'username': env('NETGSM_USERNAME', default=''),
+    'password': env('NETGSM_PASSWORD', default=''),
+    'sender_id': env('NETGSM_SENDER_ID', default='BPSALON'),
+}
+
+# SMS Base price for savings calculation
+SMS_BASE_PRICE = 0.10  # Base price per SMS in TRY
+
+# Push Notifications (FCM - Firebase Cloud Messaging)
+FCM_SERVER_KEY = env('FCM_SERVER_KEY', default='')
+
+# APNS (Apple Push Notification Service) - Future implementation
+APNS_CERTIFICATE = env('APNS_CERTIFICATE', default='')
+APNS_KEY_ID = env('APNS_KEY_ID', default='')
