@@ -56,11 +56,10 @@ urlpatterns = [
             path('posts/', include('posts.api.urls')),
             path('pages/', include('pages.api.urls')),
             path('tenants/', include('tenants.api.urls')),
-            path('billing/', include('system_billing.api.urls')),
-            # Subscription & SMS APIs (SMS moved from tenant_resources to tenant_subscriptions)
-            path('tenant-subscriptions/', include('tenant_subscriptions.api.urls')),
-            # Communications APIs (will be added when communications.api is ready)
-            # path('communications/', include('communications.api.urls')),
+            # Billing API (merged from system_billing, tenant_subscriptions, system_subscriptions)
+            path('billing/', include('billing.api.urls')),
+            # Communications API
+            path('communications/', include('communications.api.urls')),
         ]))
 
     ])),

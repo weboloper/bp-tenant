@@ -35,22 +35,12 @@ class DeliveryLog(models.Model):
     )
     content = models.TextField(_('Content'))
 
-    # Provider references
-    sms_provider = models.ForeignKey(
-        'providers.SmsProvider',
-        on_delete=models.SET_NULL,
-        null=True,
+    # Provider info
+    provider_name = models.CharField(
+        _('Provider Name'),
+        max_length=50,
         blank=True,
-        related_name='delivery_logs',
-        verbose_name=_('SMS Provider')
-    )
-    email_provider = models.ForeignKey(
-        'providers.EmailProvider',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='delivery_logs',
-        verbose_name=_('Email Provider')
+        help_text=_('Provider name (e.g., netgsm, sendgrid)')
     )
 
     # Status

@@ -17,7 +17,7 @@ class OutboundMessageAdmin(admin.ModelAdmin):
     list_filter = ['channel', 'status', 'message_type', 'created_at']
     search_fields = ['recipient_phone', 'recipient_name', 'content', 'company__name']
     readonly_fields = ['created_at', 'updated_at', 'provider_response']
-    raw_id_fields = ['company', 'provider', 'notification']
+    raw_id_fields = ['company', 'notification']
     date_hierarchy = 'created_at'
 
     fieldsets = (
@@ -28,7 +28,7 @@ class OutboundMessageAdmin(admin.ModelAdmin):
             'fields': ('channel', 'message_type', 'status')
         }),
         (_('Provider'), {
-            'fields': ('provider', 'provider_message_id', 'provider_response')
+            'fields': ('provider_name', 'provider_message_id', 'provider_response')
         }),
         (_('Credits & Timing'), {
             'fields': ('credits_used', 'scheduled_at', 'sent_at', 'delivered_at')
@@ -191,7 +191,7 @@ class DeliveryLogAdmin(admin.ModelAdmin):
     list_filter = ['channel', 'status', 'created_at']
     search_fields = ['recipient', 'content', 'company__name', 'message_id']
     readonly_fields = ['created_at', 'updated_at', 'provider_response']
-    raw_id_fields = ['company', 'sms_provider', 'email_provider']
+    raw_id_fields = ['company']
     date_hierarchy = 'created_at'
 
     def has_add_permission(self, request):

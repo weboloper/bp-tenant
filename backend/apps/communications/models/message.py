@@ -52,13 +52,11 @@ class OutboundMessage(TimestampMixin, models.Model):
     )
 
     # Provider info
-    provider = models.ForeignKey(
-        'providers.SmsProvider',
-        on_delete=models.SET_NULL,
-        null=True,
+    provider_name = models.CharField(
+        _('Provider Name'),
+        max_length=50,
         blank=True,
-        related_name='messages',
-        verbose_name=_('Provider')
+        help_text=_('SMS provider name (e.g., netgsm, twilio)')
     )
     provider_message_id = models.CharField(
         _('Provider Message ID'),

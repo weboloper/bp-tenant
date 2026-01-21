@@ -3,7 +3,7 @@ Messaging Service - High-level SMS/messaging operations
 
 Integrates with:
 - SMS providers (NetGSM, Mock)
-- Tenant SMS credits (tenant_subscriptions.SmsService)
+- Tenant SMS credits (billing.SmsService)
 - Message logging (OutboundMessage model)
 """
 import logging
@@ -21,7 +21,7 @@ from communications.providers import (
     BulkSMSResult,
     SMSStatus
 )
-from tenant_subscriptions.services import SmsService, InsufficientSmsCredit
+from billing.services import SmsService, InsufficientSmsCredit
 
 logger = logging.getLogger(__name__)
 
