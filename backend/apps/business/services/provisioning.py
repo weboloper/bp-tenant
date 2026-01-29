@@ -25,7 +25,7 @@ class TenantProvisioningService:
     
     # Mapping: Platform Default Model -> Tenant Model
     LOOKUP_MAPPINGS = [
-
+        (DefaultPaymentMethod, PaymentMethod, ['name', 'icon', 'order']),
 
     ]
     

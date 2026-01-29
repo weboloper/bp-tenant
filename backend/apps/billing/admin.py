@@ -133,6 +133,21 @@ class SmsTransactionAdmin(admin.ModelAdmin):
     raw_id_fields = ['tenant', 'payment', 'sms_package', 'created_by']
     readonly_fields = ['created_at', 'balance_after']
 
+    def has_add_permission(self, request):
+        """
+        Disable manual creation of SMS transactions.
+        Transactions should only be created through SmsBalance.add_credits() or deduct_credits()
+        """
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Make SMS transactions read-only"""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deletion of SMS transaction records"""
+        return False
+
 
 # ============================================================================
 # Payment Admin
