@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from django.conf import settings
+# from django.conf import settings
 from billing.models import (
     SubscriptionPlan, SMSPackage,
     TenantSubscription, SubscriptionHistory,
@@ -21,14 +21,16 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
         model = SubscriptionPlan
         fields = [
             'id', 'name', 'price', 'billing_cycle', 'billing_cycle_display',
-            'max_employee', 'max_locations', 'max_appointments_per_month',
-            'has_online_booking', 'has_sms_notifications', 'has_analytics',
+            'max_employees',  
+            'has_inventory',
             'features', 'is_active'
         ]
 
     def get_features(self, obj):
         """Get all available features as a dict"""
-        return obj.features
+        return {
+            'inventory': obj.has_inventory,
+        }
 
 
 # ============================================================================
@@ -156,15 +158,15 @@ class SMSPackageSerializer(serializers.ModelSerializer):
         """Get total credits (base + bonus)"""
         return obj.sms_credits + obj.bonus_credits
 
-    def get_savings_percent(self, obj):
-        """Calculate savings compared to base price"""
-        base_price_per_sms = getattr(settings, 'SMS_BASE_PRICE', 0.10)
-        total = obj.sms_credits + obj.bonus_credits
-        if total > 0:
-            actual_price_per_sms = float(obj.price) / total
-            savings = ((base_price_per_sms - actual_price_per_sms) / base_price_per_sms) * 100
-            return round(max(0, savings), 1)
-        return 0
+    # def get_savings_percent(self, obj):
+    #     """Calculate savings compared to base price"""
+    #     base_price_per_sms = getattr(settings, 'SMS_BASE_PRICE', 0.10)
+    #     total = obj.sms_credits + obj.bonus_credits
+    #     if total > 0:
+    #         actual_price_per_sms = float(obj.price) / total
+    #         savings = ((base_price_per_sms - actual_price_per_sms) / base_price_per_sms) * 100
+    #         return round(max(0, savings), 1)
+    #     return 0
 
 
 # ============================================================================

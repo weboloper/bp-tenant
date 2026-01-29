@@ -16,7 +16,7 @@ from billing.models import (
 @admin.register(SubscriptionPlan)
 class SubscriptionPlanAdmin(admin.ModelAdmin):
     list_display = ['id', 'name', 'price', 'billing_cycle', 'is_active', 'created_at']
-    list_filter = ['billing_cycle', 'is_active', 'has_online_booking', 'has_sms_notifications', 'has_analytics']
+    list_filter = ['billing_cycle', 'is_active']
     search_fields = ['name']
     readonly_fields = ['created_at']
 

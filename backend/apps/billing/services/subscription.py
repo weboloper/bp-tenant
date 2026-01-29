@@ -61,15 +61,15 @@ class SubscriptionService:
                 'plan_name': subscription.plan.name,
                 'expires_at': subscription.expires_at,
                 'limits': {
-                    'max_employee': subscription.plan.max_employee,
-                    'max_locations': subscription.plan.max_locations,
-                    'max_appointments_per_month': subscription.plan.max_appointments_per_month,
+                    'max_employees': subscription.plan.max_employees,
                 },
                 'usage': {
                     'current_employees': tenant.employee_count,
                     'current_locations': getattr(tenant, 'locations', None).count() if hasattr(tenant, 'locations') else 0,
                 },
-                'features': subscription.plan.features,
+                'features': {
+                    'inventory': subscription.plan.has_inventory,
+                },
             }
         except NoActiveSubscription:
             return {
@@ -90,10 +90,10 @@ class SubscriptionService:
         """
         try:
             subscription = SubscriptionService.get_active_subscription(tenant)
-            max_allowed = subscription.plan.max_employee
+            max_allowed = subscription.plan.max_employees
 
-            # 0 means unlimited
-            if max_allowed == 0:
+            # 0 or None means unlimited
+            if not max_allowed:
                 return True
 
             current_count = tenant.employee_count
@@ -141,7 +141,7 @@ class SubscriptionService:
         """
         try:
             subscription = SubscriptionService.get_active_subscription(tenant)
-            return subscription.plan.has_feature(feature_name)
+            return subscription.plan.has_module(feature_name)
         except NoActiveSubscription:
             return False
 
@@ -232,7 +232,7 @@ class SubscriptionService:
             subscription = SubscriptionService.get_active_subscription(tenant)
             raise SubscriptionLimitExceeded(
                 _("Employee limit (%(limit)s) exceeded for plan '%(plan)s'. Please upgrade your plan.") % {
-                    'limit': subscription.plan.max_employee,
+                    'limit': subscription.plan.max_employees,
                     'plan': subscription.plan.name
                 }
             )

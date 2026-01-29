@@ -5,121 +5,161 @@ from decimal import Decimal
 
 
 class SubscriptionPlan(models.Model):
-    """System-level: Platformun sunduğu paketler"""
+    """Platform subscription plans - defines features and limits for each tier"""
 
-    BILLING_CYCLE_CHOICES = [
-        ('monthly', _('Monthly')),
-        ('yearly', _('Yearly')),
-    ]
+    class BillingCycle(models.TextChoices):
+        MONTHLY = 'monthly', _('Monthly')
+        YEARLY = 'yearly', _('Yearly')
 
-    name = models.CharField(
-        max_length=100,
-        verbose_name=_("Name")
-    )  # Basic, Pro, Enterprise
-    price = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        verbose_name=_("Price")
-    )
+    # === BASIC INFO ===
+    name = models.CharField(_("Name"), max_length=100)
+    slug = models.SlugField(_("Slug"), unique=True, help_text=_("URL-friendly identifier"))
+    description = models.TextField(_("Description"), blank=True)
+
+    # === PRICING ===
+    price = models.DecimalField(_("Price"), max_digits=10, decimal_places=2)
     billing_cycle = models.CharField(
+        _("Billing Cycle"),
         max_length=20,
-        choices=BILLING_CYCLE_CHOICES,
-        default='monthly',
-        verbose_name=_("Billing Cycle")
+        choices=BillingCycle.choices,
+        default=BillingCycle.MONTHLY
     )
 
-    # Limitler
-    max_employee = models.IntegerField(verbose_name=_("Max Employees"))
-    max_locations = models.IntegerField(verbose_name=_("Max Locations"))
-    max_appointments_per_month = models.IntegerField(
+    # === LIMITS ===
+    max_employees = models.PositiveIntegerField(
+        _("Max Employees"),
+        default=5,
+        help_text=_("Maximum number of team members")
+    )
+
+    max_products = models.PositiveIntegerField(
+        _("Max Products"),
         null=True,
         blank=True,
-        verbose_name=_("Max Appointments Per Month")
+        help_text=_("null = unlimited")
     )
 
-    # Özellikler
-    has_online_booking = models.BooleanField(
-        default=True,
-        verbose_name=_("Has Online Booking")
-    )
-    has_sms_notifications = models.BooleanField(
+
+    # === MODULE ACCESS (core modules - individual fields for type safety) ===
+
+    has_inventory = models.BooleanField(
+        _("Inventory Module"),
         default=False,
-        verbose_name=_("Has SMS Notifications")
-    )
-    has_analytics = models.BooleanField(
-        default=False,
-        verbose_name=_("Has Analytics")
+        help_text=_("Product stock tracking")
     )
 
-    features = models.JSONField(
+
+    # === EXTENDED FEATURES (rarely used, experimental - JSON for flexibility) ===
+    extended_features = models.JSONField(
+        _("Extended Features"),
         default=dict,
         blank=True,
-        verbose_name=_("Features"),
-        help_text=_("Format: {'custom_roles': bool, 'automation': bool, 'advanced_reports': bool, 'api_access': bool, 'google_calendar': bool, 'reserve_with_google': bool, 'sms_notifications': bool, 'email_notifications': bool}")
+        help_text=_("Additional features: {'white_label': bool, 'custom_domain': bool, 'priority_support': bool}")
     )
 
-    # Welcome bonus for new tenants subscribing to this plan
+    # === BONUSES ===
     welcome_sms_bonus = models.PositiveIntegerField(
-        default=100,
-        verbose_name=_("Welcome SMS Bonus"),
+        _("Welcome SMS Bonus"),
+        default=0,
         help_text=_("SMS credits given to new tenants when they start with this plan")
     )
 
-    is_active = models.BooleanField(
-        default=True,
-        verbose_name=_("Is Active")
+    # === META ===
+    is_active = models.BooleanField(_("Is Active"), default=True)
+    is_featured = models.BooleanField(
+        _("Is Featured"),
+        default=False,
+        help_text=_("Highlight this plan in pricing pages")
     )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name=_("Created At")
-    )
+    sort_order = models.PositiveIntegerField(_("Sort Order"), default=0)
+    created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Updated At"), auto_now=True)
 
     class Meta:
         verbose_name = _("Subscription Plan")
         verbose_name_plural = _("Subscription Plans")
-        ordering = ['-created_at']
+        ordering = ['sort_order', 'price']
         indexes = [
             models.Index(fields=['is_active', 'billing_cycle']),
             models.Index(fields=['billing_cycle', 'price']),
+            models.Index(fields=['slug']),
         ]
 
     def __str__(self):
-        return f"{self.name} - {self.get_billing_cycle_display()}"
+        return f"{self.name} ({self.get_billing_cycle_display()})"
 
+    # === HELPER METHODS ===
 
-    def has_feature(self, feature_name):
+    def has_module(self, module_name: str) -> bool:
         """
-        Check if package has a specific feature.
+        Check if plan has access to a module.
 
         Args:
-            feature_name: str - Feature key to check
+            module_name: Module identifier ('services', 'products', 'pos', etc.)
 
         Returns:
-            bool or str - Feature value
+            bool: True if module is available in this plan
         """
-        return self.features.get(feature_name, False)
+        module_map = {
+            'inventory': self.has_inventory,
+        }
+        return module_map.get(module_name, False)
 
-    def get_limit(self, limit_name):
+    def get_limit(self, limit_name: str) -> int | None:
         """
-        Get limit value. 0 means unlimited.
+        Get limit value for a resource.
 
         Args:
-            limit_name: str - 'employee', 'locations',  'max_appointments_per_month'
+            limit_name: Limit identifier ('employees', 'locations', etc.)
 
         Returns:
-            int - Limit value (0 = unlimited)
+            int | None: Limit value (None = unlimited)
         """
         limit_map = {
-            'employee': self.max_employee,
-            'locations': self.max_locations,
-            'max_appointments_per_month': self.max_appointments_per_month,
+            'employees': self.max_employees,
+            'products': self.max_products,
         }
-        return limit_map.get(limit_name, 0)
+        return limit_map.get(limit_name)
 
-    def is_unlimited(self, limit_name):
-        """Check if limit is unlimited"""
-        return self.get_limit(limit_name) == 0
+    def is_unlimited(self, limit_name: str) -> bool:
+        """
+        Check if a resource limit is unlimited.
 
+        Args:
+            limit_name: Limit identifier
+
+        Returns:
+            bool: True if limit is None (unlimited)
+        """
+        return self.get_limit(limit_name) is None
+
+    def has_extended_feature(self, feature_name: str) -> bool:
+        """
+        Check extended features from JSON field.
+
+        Args:
+            feature_name: Feature identifier ('white_label', 'custom_domain', etc.)
+
+        Returns:
+            bool: True if feature is enabled
+        """
+        return self.extended_features.get(feature_name, False)
+
+    def check_limit(self, limit_name: str, current_count: int) -> bool:
+        """
+        Check if current count is within the plan limit.
+
+        Args:
+            limit_name: Limit identifier
+            current_count: Current resource count
+
+        Returns:
+            bool: True if within limit or unlimited
+        """
+        limit = self.get_limit(limit_name)
+        if limit is None:
+            return True  # Unlimited
+        return current_count < limit
 
 
 class SMSPackage(models.Model):
@@ -134,67 +174,57 @@ class SMSPackage(models.Model):
     """
 
     name = models.CharField(
+        _("Name"),
         max_length=100,
-        unique=True,
-        verbose_name="Paket Adı"
+        unique=True
     )
-
     display_name = models.CharField(
-        max_length=100,
-        verbose_name="Görünen Ad"
+        _("Display Name"),
+        max_length=100
     )
-
     description = models.TextField(
-        blank=True,
-        verbose_name="Açıklama"
+        _("Description"),
+        blank=True
     )
 
     # SMS credits included
     sms_credits = models.PositiveIntegerField(
+        _("SMS Credits"),
         validators=[MinValueValidator(1)],
-        verbose_name="SMS Kredisi",
-        help_text="Bu pakette kaç SMS kredisi var"
+        help_text=_("Number of SMS credits in this package")
     )
 
     # Pricing
     price = models.DecimalField(
+        _("Price"),
         max_digits=10,
         decimal_places=2,
-        validators=[MinValueValidator(Decimal('0.00'))],
-        verbose_name="Fiyat (TL)"
+        validators=[MinValueValidator(Decimal('0.00'))]
     )
 
     # Display settings
-    is_active = models.BooleanField(
-        default=True,
-        verbose_name="Aktif"
-    )
-
+    is_active = models.BooleanField(_("Is Active"), default=True)
     is_featured = models.BooleanField(
+        _("Is Featured"),
         default=False,
-        verbose_name="Öne Çıkan",
-        help_text="Öne çıkan paketler daha görünür bir şekilde gösterilir"
+        help_text=_("Featured packages are displayed more prominently")
     )
-
-    sort_order = models.PositiveIntegerField(
-        default=0,
-        verbose_name="Sıralama"
-    )
+    sort_order = models.PositiveIntegerField(_("Sort Order"), default=0)
 
     # Bonus credits (optional)
     bonus_credits = models.PositiveIntegerField(
+        _("Bonus Credits"),
         default=0,
-        verbose_name="Bonus Kredi",
-        help_text="Bu paketi alan işletmelere verilen ekstra SMS kredisi"
+        help_text=_("Extra SMS credits given with this package")
     )
 
     # Metadata
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Updated At"), auto_now=True)
 
     class Meta:
-        verbose_name = "SMS Package"
-        verbose_name_plural = "SMS Packages"
+        verbose_name = _("SMS Package")
+        verbose_name_plural = _("SMS Packages")
         ordering = ['sort_order', 'sms_credits']
         indexes = [
             models.Index(fields=['is_active', 'sort_order']),
@@ -204,12 +234,12 @@ class SMSPackage(models.Model):
     def __str__(self):
         return f"{self.display_name} ({self.sms_credits} SMS - {self.price} TL)"
 
-    def get_price_per_sms(self):
+    def get_price_per_sms(self) -> Decimal:
         """Calculate price per SMS credit"""
         if self.price is None or not self.sms_credits:
             return Decimal('0.00')
         return self.price / Decimal(str(self.sms_credits))
 
-    def get_total_credits(self):
+    def get_total_credits(self) -> int:
         """Get total credits including bonus"""
         return (self.sms_credits or 0) + (self.bonus_credits or 0)

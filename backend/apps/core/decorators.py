@@ -137,3 +137,154 @@ def rate_limit_api(group: str = 'api', rate: str = '100/h'):
             return func(request, *args, **kwargs)
         return wrapper
     return decorator
+
+
+# =============================================================================
+# PLAN/SUBSCRIPTION DECORATORS
+# =============================================================================
+
+def plan_required(module_name: str):
+    """
+    Decorator to check if the company's subscription plan has access to a module.
+
+    Use this decorator on function-based views that require a specific plan feature.
+    The view will return 403 Forbidden if the company's plan doesn't include
+    the required module.
+
+    Args:
+        module_name: The module/feature to check for. Available options:
+            - 'services': Service definition and management
+            - 'products': Product management with stock tracking
+            - 'pos': Point of sale
+            - 'marketing': Campaigns and promotions
+            - 'reports': Basic reports
+            - 'advanced_reports': Detailed analytics
+            - 'advanced_clients': Client segmentation, loyalty, referrals
+            - 'advanced_permissions': Custom roles, detailed permissions
+            - 'online_booking': Online appointment booking
+            - 'multi_location': Multiple business locations
+            - 'sms': SMS notifications
+            - 'email': Email notifications
+            - 'whatsapp': WhatsApp integration
+            - 'google_calendar': Google Calendar sync
+            - 'reserve_with_google': Reserve with Google
+
+    Usage:
+        @api_view(['GET'])
+        @plan_required('services')
+        def service_list(request):
+            ...
+
+        @api_view(['POST'])
+        @plan_required('products')
+        def update_stock(request):
+            ...
+    """
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(request, *args, **kwargs):
+            from rest_framework.response import Response
+            from rest_framework import status
+            from django.utils.translation import gettext_lazy as _
+
+            # Get company from user or request
+            company = None
+            if hasattr(request, 'user') and request.user.is_authenticated:
+                company = getattr(request.user, 'company', None)
+            if not company:
+                company = getattr(request, 'company', None)
+
+            if company:
+                # Check if company has active subscription with the required module
+                subscription = getattr(company, 'subscription', None)
+                if subscription and subscription.plan:
+                    if not subscription.plan.has_module(module_name):
+                        return Response(
+                            {
+                                'detail': str(_(
+                                    "Your plan doesn't include the %(module)s module. "
+                                    "Please upgrade your subscription."
+                                ) % {'module': module_name}),
+                                'code': 'plan_feature_required',
+                                'required_module': module_name
+                            },
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+
+            return func(request, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def plan_limit_check(limit_name: str, get_count_func: Callable = None):
+    """
+    Decorator to check plan limits before creating new resources.
+
+    Use this decorator on function-based views that create resources subject to limits.
+    The view will return 403 Forbidden if the company has reached their plan limit.
+
+    Args:
+        limit_name: The limit to check. Available options:
+            - 'employees': Maximum team members
+            - 'locations': Maximum business locations
+            - 'appointments' or 'appointments_per_month': Monthly appointments
+            - 'products': Maximum products
+            - 'services': Maximum services
+
+        get_count_func: Optional function that takes (company) and returns current count.
+                       If not provided, the check will only verify the limit exists.
+
+    Usage:
+        def get_employee_count(company):
+            return Employee.objects.filter(company=company).count()
+
+        @api_view(['POST'])
+        @plan_limit_check('employees', get_employee_count)
+        def create_employee(request):
+            ...
+    """
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(request, *args, **kwargs):
+            from rest_framework.response import Response
+            from rest_framework import status
+            from django.utils.translation import gettext_lazy as _
+
+            # Get company from user or request
+            company = None
+            if hasattr(request, 'user') and request.user.is_authenticated:
+                company = getattr(request.user, 'company', None)
+            if not company:
+                company = getattr(request, 'company', None)
+
+            if company:
+                subscription = getattr(company, 'subscription', None)
+                if subscription and subscription.plan:
+                    plan = subscription.plan
+
+                    # Get current count if function provided
+                    current_count = 0
+                    if get_count_func:
+                        current_count = get_count_func(company)
+
+                    # Check if within limit
+                    if not plan.check_limit(limit_name, current_count):
+                        limit_value = plan.get_limit(limit_name)
+                        return Response(
+                            {
+                                'detail': str(_(
+                                    "You have reached your plan limit for %(resource)s. "
+                                    "Your plan allows %(limit)s %(resource)s. "
+                                    "Please upgrade your subscription."
+                                ) % {'resource': limit_name, 'limit': limit_value}),
+                                'code': 'plan_limit_exceeded',
+                                'limit_name': limit_name,
+                                'limit_value': limit_value,
+                                'current_count': current_count
+                            },
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+
+            return func(request, *args, **kwargs)
+        return wrapper
+    return decorator

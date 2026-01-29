@@ -5,6 +5,9 @@ from datetime import timedelta
 from tenants.models import Company
 from billing.models import SubscriptionPlan, TenantSubscription, SmsBalance, SmsTransaction
 from core.constants import DEFAULT_TRIAL_DAYS
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=Company)
@@ -16,22 +19,12 @@ def create_default_subscription_and_sms_balance(sender, instance, created, **kwa
     - Welcome SMS bonus: from SubscriptionPlan.welcome_sms_bonus
     """
     if created:
-        # Get or create Free/Basic plan
-        default_plan, _ = SubscriptionPlan.objects.get_or_create(
-            name='Basic',
-            defaults={
-                'price': 0,
-                'billing_cycle': 'monthly',
-                'max_employee': 2,
-                'max_locations': 1,
-                'max_appointments_per_month': 100,
-                'has_online_booking': True,
-                'has_sms_notifications': False,
-                'has_analytics': False,
-                'is_active': True,
-                'welcome_sms_bonus': 100,
-            }
-        )
+        # Get the default plan (active plan with lowest sort_order)
+        default_plan = SubscriptionPlan.objects.filter(is_active=True).order_by('sort_order').first()
+
+        if not default_plan:
+            logger.warning(f"No active subscription plan found. Tenant {instance.name} (ID: {instance.id}) created without subscription.")
+            return
 
         # Create subscription with trial period
         TenantSubscription.objects.create(

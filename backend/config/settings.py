@@ -122,12 +122,12 @@ INSTALLED_APPS = [
     # Local apps
     'core',
     'accounts',
-    'communications',
-    'billing',
-    # 'system_subscriptions',  # DEPRECATED: merged into billing
-    # 'tenant_subscriptions',  # DEPRECATED: merged into billing
-    # 'system_billing',        # DEPRECATED: merged into billing
+    'platform_defaults',
+    'providers',
     'tenants',
+    'billing',
+    'business',
+    'notifications',
     'pages',
     'posts',
 ]

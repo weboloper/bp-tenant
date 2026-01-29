@@ -59,7 +59,7 @@ urlpatterns = [
             # Billing API (merged from system_billing, tenant_subscriptions, system_subscriptions)
             path('billing/', include('billing.api.urls')),
             # Communications API
-            path('communications/', include('communications.api.urls')),
+            # path('communications/', include('communications.api.urls')),
         ]))
 
     ])),

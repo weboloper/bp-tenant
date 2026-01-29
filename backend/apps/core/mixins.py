@@ -123,3 +123,144 @@ class SoftDeleteMixin(models.Model):
         self.deleted_at = None
         self.deleted_by = None
         self.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+
+
+# =============================================================================
+# VIEW MIXINS
+# =============================================================================
+
+class PlanFeatureRequiredMixin:
+    """
+    Mixin to check if the company's subscription plan has access to a module.
+
+    Add this mixin to any view that requires a specific plan feature/module.
+    The view will return 403 Forbidden if the company's plan doesn't include
+    the required module.
+
+    Usage:
+        class ServiceListView(PlanFeatureRequiredMixin, ListAPIView):
+            required_module = 'services'
+            # ...
+
+        class ProductDetailView(PlanFeatureRequiredMixin, RetrieveAPIView):
+            required_module = 'products'
+            # ...
+
+    Available modules:
+        - 'services': Service definition and management
+        - 'products': Product management with stock tracking
+        - 'pos': Point of sale
+        - 'marketing': Campaigns and promotions
+        - 'reports': Basic reports
+        - 'advanced_reports': Detailed analytics
+        - 'advanced_clients': Client segmentation, loyalty, referrals
+        - 'advanced_permissions': Custom roles, detailed permissions
+        - 'online_booking': Online appointment booking
+        - 'multi_location': Multiple business locations
+        - 'sms': SMS notifications
+        - 'email': Email notifications
+        - 'whatsapp': WhatsApp integration
+        - 'google_calendar': Google Calendar sync
+        - 'reserve_with_google': Reserve with Google
+    """
+    required_module = None  # Override in view
+
+    def dispatch(self, request, *args, **kwargs):
+        if self.required_module and hasattr(request, 'user') and request.user.is_authenticated:
+            # Get company from user or request
+            company = getattr(request.user, 'company', None)
+            if not company:
+                company = getattr(request, 'company', None)
+
+            if company:
+                # Check if company has active subscription with the required module
+                subscription = getattr(company, 'subscription', None)
+                if subscription and subscription.plan:
+                    if not subscription.plan.has_module(self.required_module):
+                        from rest_framework.response import Response
+                        from rest_framework import status
+                        return Response(
+                            {
+                                'detail': _(
+                                    "Your plan doesn't include the %(module)s module. "
+                                    "Please upgrade your subscription."
+                                ) % {'module': self.required_module},
+                                'code': 'plan_feature_required',
+                                'required_module': self.required_module
+                            },
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+
+        return super().dispatch(request, *args, **kwargs)
+
+
+class PlanLimitMixin:
+    """
+    Mixin to check plan limits before creating new resources.
+
+    Add this mixin to CreateAPIView or similar views to enforce plan limits.
+
+    Usage:
+        class EmployeeCreateView(PlanLimitMixin, CreateAPIView):
+            limit_name = 'employees'
+            count_queryset = Employee.objects.all()  # or override get_current_count()
+            # ...
+
+    Available limits:
+        - 'employees': Maximum team members
+        - 'locations': Maximum business locations
+        - 'appointments' or 'appointments_per_month': Monthly appointments
+        - 'products': Maximum products
+        - 'services': Maximum services
+    """
+    limit_name = None  # Override in view
+    count_queryset = None  # Optional: QuerySet to count existing items
+
+    def get_current_count(self, company):
+        """
+        Get current count of resources for the company.
+        Override this method for custom counting logic.
+        """
+        if self.count_queryset is not None:
+            return self.count_queryset.filter(company=company).count()
+        return 0
+
+    def check_plan_limit(self, request):
+        """Check if the company can create more of this resource."""
+        company = getattr(request.user, 'company', None)
+        if not company:
+            company = getattr(request, 'company', None)
+
+        if not company or not self.limit_name:
+            return True, None
+
+        subscription = getattr(company, 'subscription', None)
+        if not subscription or not subscription.plan:
+            return True, None
+
+        plan = subscription.plan
+        current_count = self.get_current_count(company)
+
+        if not plan.check_limit(self.limit_name, current_count):
+            limit_value = plan.get_limit(self.limit_name)
+            return False, {
+                'detail': _(
+                    "You have reached your plan limit for %(resource)s. "
+                    "Your plan allows %(limit)s %(resource)s. Please upgrade your subscription."
+                ) % {'resource': self.limit_name, 'limit': limit_value},
+                'code': 'plan_limit_exceeded',
+                'limit_name': self.limit_name,
+                'limit_value': limit_value,
+                'current_count': current_count
+            }
+
+        return True, None
+
+    def create(self, request, *args, **kwargs):
+        allowed, error_response = self.check_plan_limit(request)
+        if not allowed:
+            from rest_framework.response import Response
+            from rest_framework import status
+            return Response(error_response, status=status.HTTP_403_FORBIDDEN)
+
+        return super().create(request, *args, **kwargs)
