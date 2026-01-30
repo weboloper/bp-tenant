@@ -6,27 +6,23 @@ from rest_framework.exceptions import PermissionDenied
 from django.utils.translation import gettext_lazy as _
 from django.db.models import ProtectedError
 
-from tenants.api.permissions import IsCompanyMember, IsCompanyAdmin
+from staff.api.permissions import IsCompanyMember, IsCompanyAdmin
 from billing.services.subscription import SubscriptionService, SubscriptionLimitExceeded
 
 # Settings models
 from business.models.settings import (
     BusinessSettings,
-
 )
 
 # Lookup models
 from business.models.lookups import (
-
     PaymentMethod,
-
 )
 
 # Data models
-from business.models.data import (
+from business.models.entities import (
     Location,
     TaxRate,
-
 )
 
 from .serializers import (
@@ -34,14 +30,12 @@ from .serializers import (
     BusinessSettingsSerializer,
 
     # Lookups
-
     PaymentMethodSerializer,
 
     # Data
     LocationSerializer,
     LocationListSerializer,
     TaxRateSerializer,
-
 )
 
 

@@ -5,7 +5,7 @@ This module provides helper functions for checking user permissions
 in views, APIs, and business logic.
 
 Usage:
-    from tenants.permissions_utils import check_permission, require_permission
+    from staff.permissions_utils import check_permission, require_permission
 
     # In function-based view
     @require_permission('can_view_all_calendars')
@@ -19,158 +19,6 @@ Usage:
             # Show all calendars
         else:
             # Show only own calendar
-
-
-Permission Utilities - Usage Examples
-=====================================
-
-## 1. Function-Based Views (Django)
-
-### Basic Permission Check:
-```python
-from tenants.permissions_utils import require_permission
-
-@require_permission('can_view_all_calendars')
-def appointments_list(request):
-    # User guaranteed to have permission
-    appointments = Appointment.objects.filter(company=request.company)
-    return render(request, 'appointments.html', {'appointments': appointments})
-```
-
-### Multiple Permissions:
-```python
-from tenants.permissions_utils import require_permissions
-
-@require_permissions(['can_book_appointments', 'can_checkout'])
-def booking_checkout(request):
-    # User has both permissions
-    ...
-```
-
-### Manual Check (Conditional Logic):
-```python
-from tenants.permissions_utils import check_permission
-
-def appointments_view(request):
-    if check_permission(request.user, 'can_view_all_calendars'):
-        # Show all calendars
-        appointments = Appointment.objects.filter(company=request.company)
-    else:
-        # Show only own calendar
-        appointments = Appointment.objects.filter(
-            employee=request.user.employment
-        )
-    return render(request, 'appointments.html', {'appointments': appointments})
-```
-
-## 2. DRF ViewSets
-
-### Using HasPermission Class:
-```python
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
-from tenants.api.permissions import HasPermission
-
-class AppointmentViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, HasPermission]
-    required_permission = 'can_book_appointments'
-
-    queryset = Appointment.objects.all()
-    serializer_class = AppointmentSerializer
-```
-
-### Using PermissionRequiredMixin:
-```python
-from tenants.api.permissions import PermissionRequiredMixin
-
-class AppointmentViewSet(PermissionRequiredMixin, viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
-
-    permission_map = {
-        'list': 'can_view_own_calendar',
-        'create': 'can_book_appointments',
-        'view_all': 'can_view_all_calendars',  # Custom action
-    }
-
-    @action(detail=False, methods=['get'])
-    def view_all(self, request):
-        # Permission checked automatically via mixin
-        appointments = Appointment.objects.filter(company=request.company)
-        serializer = self.get_serializer(appointments, many=True)
-        return Response(serializer.data)
-```
-
-### Manual Check in Action:
-```python
-from tenants.permissions_utils import check_permission
-
-class AppointmentViewSet(viewsets.ModelViewSet):
-    @action(detail=False, methods=['get'])
-    def my_action(self, request):
-        if check_permission(request.user, 'can_view_all_calendars'):
-            # Show all
-            queryset = self.get_queryset()
-        else:
-            # Show filtered
-            queryset = self.get_queryset().filter(employee=request.user.employment)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-```
-
-## 3. Business Logic (Models/Services)
-
-### In Model Methods:
-```python
-class Appointment(models.Model):
-    def can_user_edit(self, user):
-        from tenants.permissions_utils import check_permission
-
-        # Owner can always edit
-        if self.company.is_owner(user):
-            return True
-
-        # Check if user has permission to edit
-        return check_permission(user, 'can_book_appointments', self.company)
-```
-
-### In Service Classes:
-```python
-class AppointmentService:
-    def get_appointments_for_user(self, user, company):
-        from tenants.permissions_utils import check_permission
-
-        if check_permission(user, 'can_view_all_calendars', company):
-            return Appointment.objects.filter(company=company)
-        else:
-            employee = get_user_employee(user, company)
-            return Appointment.objects.filter(employee=employee)
-```
-
-## 4. Testing Permissions
-
-```python
-from django.test import TestCase
-from tenants.permissions_utils import check_permission
-
-class PermissionTest(TestCase):
-    def test_basic_user_cannot_view_all_calendars(self):
-        # Create user with BASIC role
-        employee = Employee.objects.create(
-            user=user,
-            company=company,
-            role_level=RoleLevel.BASIC
-        )
-
-        # Check permission
-        has_perm = check_permission(user, 'can_view_all_calendars', company)
-        self.assertFalse(has_perm)
-
-    def test_owner_has_all_permissions(self):
-        # Owner should have all permissions
-        has_perm = check_permission(company.owner, 'can_view_all_calendars', company)
-        self.assertTrue(has_perm)
-```
 """
 
 from functools import wraps
@@ -264,19 +112,10 @@ def check_permission(user, permission_field, company=None):
     3. If user is owner of the company → True (owner has all permissions)
     4. If user is employee → check CompanyRolePermission
     5. Otherwise → False
-
-    Note:
-        Some permissions require specific plan features. See tenants/constants.py
-        for FEATURE_RESTRICTED_PERMISSIONS mapping.
-
-    Usage:
-        if check_permission(request.user, 'can_view_all_calendars'):
-            # Show all calendars
-        else:
-            # Show only own calendar
     """
-    from tenants.models import CompanyRolePermission
-    from tenants.constants import FEATURE_RESTRICTED_PERMISSIONS
+    # Lazy imports to avoid circular dependencies
+    from staff.models import CompanyRolePermission
+    from staff.constants import FEATURE_RESTRICTED_PERMISSIONS
 
     if not user or not user.is_authenticated:
         return False
@@ -329,13 +168,15 @@ def _check_plan_feature(company, feature_name):
         Boolean - True if plan has the feature, False otherwise
     """
     try:
-        from tenant_subscriptions.models import TenantSubscription
+        from billing.models import TenantSubscription
         subscription = TenantSubscription.objects.select_related('plan').get(
             tenant=company,
             status='active'
         )
         return subscription.plan.has_feature(feature_name)
     except TenantSubscription.DoesNotExist:
+        return False
+    except Exception:
         return False
 
 
@@ -349,13 +190,8 @@ def get_user_permissions(user, company=None):
 
     Returns:
         CompanyRolePermission instance or None
-
-    Usage:
-        perms = get_user_permissions(request.user)
-        if perms and perms.can_view_all_calendars:
-            # Show all calendars
     """
-    from tenants.models import CompanyRolePermission
+    from staff.models import CompanyRolePermission
 
     if not user or not user.is_authenticated:
         return None

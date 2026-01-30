@@ -1,10 +1,9 @@
 """
-Tenant-specific constants and business rules.
+Staff/Permission-specific constants and business rules.
 
 This module contains:
 - Feature-to-permission mappings
 - Plan-based access control rules
-- Default values for tenant provisioning
 """
 
 # Permission fields that require specific plan features

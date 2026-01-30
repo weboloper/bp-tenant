@@ -9,7 +9,7 @@ from .lookups import (
 )
 
 # Data models
-from .data import (
+from .entities import (
     Location,
     TaxRate,
 )

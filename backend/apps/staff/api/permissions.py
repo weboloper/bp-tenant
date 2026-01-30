@@ -1,25 +1,4 @@
 from rest_framework import permissions
-from staff.models import Employee
-
-class IsCompanyOwner(permissions.BasePermission):
-    """
-    Permission: User must be the company owner.
-
-    For object-level permission:
-    - If object is a Company: user must be the owner
-    - If object has .company attribute: user must be the company's owner
-    """
-
-    def has_object_permission(self, request, view, obj):
-        # If obj is a Company, check ownership directly
-        if isinstance(obj, Company):
-            return obj.owner == request.user
-
-        # If obj has a company attribute, check company ownership
-        if hasattr(obj, 'company'):
-            return obj.company.owner == request.user
-
-        return False
 
 
 class IsCompanyAdmin(permissions.BasePermission):
@@ -38,6 +17,9 @@ class IsCompanyAdmin(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         """Check if user is admin of the object's company"""
+        from tenants.models import Company
+        from staff.models import Employee
+
         # Get the company from the object
         if isinstance(obj, Company):
             company = obj
@@ -80,6 +62,9 @@ class IsCompanyMember(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         """Check if user is member (owner or employee) of the object's company"""
+        from tenants.models import Company
+        from staff.models import Employee
+
         # Get the company from the object
         if isinstance(obj, Company):
             company = obj
@@ -114,6 +99,8 @@ class CanManageEmployees(permissions.BasePermission):
 
     def has_permission(self, request, view):
         """Check if user can manage employees"""
+        from staff.models import Employee
+
         if not request.user.is_authenticated or not request.company:
             return False
 
@@ -137,6 +124,8 @@ class CanManageEmployees(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         """Check if user can manage this specific employee"""
+        from staff.models import Employee
+
         # Must be employee of same company
         if not isinstance(obj, Employee):
             return False
@@ -184,7 +173,7 @@ class HasPermission(permissions.BasePermission):
 
     def has_permission(self, request, view):
         """Check if user has required permission(s)"""
-        from tenants.permissions_utils import check_permission
+        from staff.permissions_utils import check_permission
 
         if not request.user.is_authenticated:
             return False
@@ -240,9 +229,8 @@ class PermissionRequiredMixin:
 
     def check_permissions(self, request):
         """Override to add permission checking"""
-        from rest_framework.exceptions import PermissionDenied
         from django.utils.translation import gettext_lazy as _
-        from tenants.permissions_utils import check_permission
+        from staff.permissions_utils import check_permission
 
         # First run default permission checks
         super().check_permissions(request)

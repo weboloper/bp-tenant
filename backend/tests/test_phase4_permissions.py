@@ -14,7 +14,9 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory, force_authenticate
 from tenant_subscriptions.api.views import TenantSubscriptionViewSet
 from tenant_resources.api.views import SmsBalanceViewSet
-from tenants.models import Company, Employee, RoleLevel, BusinessType
+from tenants.models import Company
+from staff.models import Employee, RoleLevel
+from defaults.models import BusinessType
 
 User = get_user_model()
 

@@ -8,8 +8,10 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
 from accounts.models import User
-from tenants.models import BusinessType, Company, Employee, RoleLevel
-from tenants.permissions_utils import check_permission, get_user_permissions
+from tenants.models import Company
+from staff.models import Employee, RoleLevel
+from defaults.models import BusinessType
+from staff.permissions_utils import check_permission, get_user_permissions
 from datetime import date
 
 print("=" * 60)

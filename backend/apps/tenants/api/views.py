@@ -10,12 +10,8 @@ from .serializers import (
     CompanySerializer,
     ProductSerializer
 )
-from .permissions import (
-    IsCompanyOwner,
-    IsCompanyAdmin,
-    IsCompanyMember,
-    CanManageEmployees
-)
+from .permissions import IsCompanyOwner
+from staff.api.permissions import IsCompanyAdmin, IsCompanyMember
 
 
 class CompanyViewSet(viewsets.ModelViewSet):

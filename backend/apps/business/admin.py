@@ -4,21 +4,17 @@ from django.utils.translation import gettext_lazy as _
 # Settings models
 from .models.settings import (
     BusinessSettings,
-
 )
 
 # Lookup models
 from .models.lookups import (
-
     PaymentMethod,
-
 )
 
 # Data models
-from .models.data import (
+from .models.entities import (
     Location,
     TaxRate,
-
 )
 
 

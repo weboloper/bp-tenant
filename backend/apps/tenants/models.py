@@ -45,32 +45,36 @@ class Company(SoftDeleteMixin, TimestampMixin, models.Model):
     objects = SoftDeleteManager()
     all_objects = models.Manager()
 
-    # @property
-    # def active_employees(self):
-    #     """Get all active employees (excluding soft-deleted)"""
-    #     return self.employees.filter(
-    #         status=Employee.Status.ACTIVE,
-    #         is_deleted=False
-    #     )
+    @property
+    def active_employees(self):
+        """Get all active employees (excluding soft-deleted)"""
+        # Lazy import to avoid circular dependency
+        from staff.models import Employee
+        return self.employees.filter(
+            status=Employee.Status.ACTIVE,
+            is_deleted=False
+        )
 
-    # @property
-    # def employee_count(self):
-    #     """Count of active employees"""
-    #     return self.active_employees.count()
+    @property
+    def employee_count(self):
+        """Count of active employees"""
+        return self.active_employees.count()
 
-    # def has_employee(self, user):
-    #     """Check if user is an employee of this company"""
-    #     return self.employees.filter(
-    #         user=user,
-    #         is_deleted=False
-    #     ).exists()
+    def has_employee(self, user):
+        """Check if user is an employee of this company"""
+        return self.employees.filter(
+            user=user,
+            is_deleted=False
+        ).exists()
 
-    # def get_employee(self, user):
-    #     """Get employee record for user, or None if not found"""
-    #     try:
-    #         return self.employees.get(user=user, is_deleted=False)
-    #     except Employee.DoesNotExist:
-    #         return None
+    def get_employee(self, user):
+        """Get employee record for user, or None if not found"""
+        # Lazy import to avoid circular dependency
+        from staff.models import Employee
+        try:
+            return self.employees.get(user=user, is_deleted=False)
+        except Employee.DoesNotExist:
+            return None
 
     def is_owner(self, user):
         """Check if user is the owner of this company"""

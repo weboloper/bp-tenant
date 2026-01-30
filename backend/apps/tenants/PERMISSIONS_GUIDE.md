@@ -91,7 +91,7 @@ Level 1 (BASIC - Basic User)
 
 #### Basic Permission Check
 ```python
-from tenants.permissions_utils import require_permission
+from staff.permissions_utils import require_permission
 
 @require_permission('can_view_all_calendars')
 def appointments_list(request):
@@ -102,7 +102,7 @@ def appointments_list(request):
 
 #### Multiple Permissions Required
 ```python
-from tenants.permissions_utils import require_permissions
+from staff.permissions_utils import require_permissions
 
 @require_permissions(['can_book_appointments', 'can_checkout'])
 def booking_checkout(request):
@@ -113,7 +113,7 @@ def booking_checkout(request):
 
 #### Manual Check (Conditional Logic)
 ```python
-from tenants.permissions_utils import check_permission
+from staff.permissions_utils import check_permission
 
 def appointments_view(request):
     if check_permission(request.user, 'can_view_all_calendars'):
@@ -133,7 +133,7 @@ def appointments_view(request):
 ```python
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from tenants.api.permissions import HasPermission
+from staff.api.permissions import HasPermission
 
 class AppointmentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, HasPermission]
@@ -148,7 +148,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
-from tenants.api.permissions import PermissionRequiredMixin
+from staff.api.permissions import PermissionRequiredMixin
 
 class AppointmentViewSet(PermissionRequiredMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -173,7 +173,7 @@ class AppointmentViewSet(PermissionRequiredMixin, viewsets.ModelViewSet):
 
 #### Manual Check in DRF Action
 ```python
-from tenants.permissions_utils import check_permission
+from staff.permissions_utils import check_permission
 from rest_framework.decorators import action
 
 class AppointmentViewSet(viewsets.ModelViewSet):
@@ -202,7 +202,7 @@ class Appointment(models.Model):
 
     def can_user_edit(self, user):
         """Check if user can edit this appointment"""
-        from tenants.permissions_utils import check_permission
+        from staff.permissions_utils import check_permission
 
         # Owner can always edit
         if self.company.is_owner(user):
@@ -217,7 +217,7 @@ class Appointment(models.Model):
 class AppointmentService:
     def get_appointments_for_user(self, user, company):
         """Get appointments user can view"""
-        from tenants.permissions_utils import check_permission, get_user_employee
+        from staff.permissions_utils import check_permission, get_user_employee
 
         if check_permission(user, 'can_view_all_calendars', company):
             # User can view all appointments
@@ -308,8 +308,9 @@ def my_view(request):
 
 ```python
 from django.test import TestCase
-from tenants.models import Company, Employee, RoleLevel
-from tenants.permissions_utils import check_permission
+from tenants.models import Company
+from staff.models import Employee, RoleLevel
+from staff.permissions_utils import check_permission
 
 class PermissionTest(TestCase):
     def setUp(self):
@@ -481,8 +482,9 @@ Check:
 
 ## Related Files
 
-- [apps/tenants/permissions_utils.py](apps/tenants/permissions_utils.py) - Helper functions and decorators
-- [apps/tenants/api/permissions.py](apps/tenants/api/permissions.py) - DRF permission classes
-- [apps/tenants/models.py](apps/tenants/models.py) - CompanyRolePermission model
-- [apps/tenants/signals.py](apps/tenants/signals.py) - Auto-creates default permissions
+- [apps/staff/permissions_utils.py](apps/staff/permissions_utils.py) - Helper functions and decorators
+- [apps/staff/api/permissions.py](apps/staff/api/permissions.py) - DRF permission classes (HasPermission, PermissionRequiredMixin, etc.)
+- [apps/tenants/api/permissions.py](apps/tenants/api/permissions.py) - IsCompanyOwner permission
+- [apps/staff/models/permissions.py](apps/staff/models/permissions.py) - CompanyRolePermission model
+- [apps/staff/signals.py](apps/staff/signals.py) - Auto-creates default permissions
 - [apps/core/middleware.py](apps/core/middleware.py) - TenantMiddleware sets `request.company`

@@ -19,7 +19,7 @@ from billing.services import (
     SubscriptionService, NoActiveSubscription,
     SmsService, IyzicoService
 )
-from tenants.api.permissions import IsCompanyMember
+from staff.api.permissions import IsCompanyMember
 from .serializers import (
     SubscriptionPlanSerializer,
     TenantSubscriptionSerializer,
