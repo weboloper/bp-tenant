@@ -64,3 +64,5 @@ drf-spectacular==0.26.5
 
 # Filtering
 django-filter==24.3
+
+django-phonenumber-field[phonenumberslite]==8.4.0

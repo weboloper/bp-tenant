@@ -4,18 +4,15 @@ from django.utils.translation import gettext_lazy as _
 # Settings models
 from business.models.settings import (
     BusinessSettings,
-
 )
 
 # Lookup models
 from business.models.lookups import (
-
     PaymentMethod,
-
 )
 
 # Data models
-from business.models.data import (
+from backend.apps.business.models.entities import (
     Location,
     TaxRate,
 )
