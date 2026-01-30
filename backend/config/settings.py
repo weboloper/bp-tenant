@@ -122,11 +122,12 @@ INSTALLED_APPS = [
     # Local apps
     'core',
     'accounts',
-    'platform_defaults',
+    'defaults',
     'providers',
     'tenants',
     'billing',
     'business',
+    'staff',
     'notifications',
     'pages',
     'posts',

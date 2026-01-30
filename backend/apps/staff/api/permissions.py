@@ -1,6 +1,5 @@
 from rest_framework import permissions
-from tenants.models import Company
-
+from staff.models import Employee
 
 class IsCompanyOwner(permissions.BasePermission):
     """

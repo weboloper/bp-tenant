@@ -15,13 +15,13 @@ class Location(TenantAwareMixin, SoftDeleteMixin, TimestampMixin, models.Model):
 
     # Business Type
     main_business_type = models.ForeignKey(
-        'tenants.BusinessType',
+        'defaults.BusinessType',
         on_delete=models.PROTECT,
         related_name='main_locations',
         verbose_name=_("Main Business Type")
     )
     additional_business_types = models.ManyToManyField(
-        'tenants.BusinessType',
+        'defaults.BusinessType',
         blank=True,
         related_name='additional_locations',
         verbose_name=_("Additional Business Types")

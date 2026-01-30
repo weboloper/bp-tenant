@@ -6,8 +6,8 @@ When a new Company is created, this module automatically:
 """
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from .models import Company, CompanyRolePermission, RoleLevel
-
+from .models import Company 
+from staff.models import CompanyRolePermission, RoleLevel
 
 @receiver(post_save, sender=Company)
 def create_default_permissions(sender, instance, created, **kwargs):

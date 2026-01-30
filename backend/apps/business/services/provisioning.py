@@ -1,7 +1,7 @@
 # business/services/provisioning.py
 
 from django.db import transaction
-from platform_defaults.models import (
+from defaults.models import (
 
     DefaultPaymentMethod,
 
