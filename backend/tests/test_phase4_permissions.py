@@ -16,7 +16,7 @@ from tenant_subscriptions.api.views import TenantSubscriptionViewSet
 from tenant_resources.api.views import SmsBalanceViewSet
 from tenants.models import Company
 from staff.models import Employee, RoleLevel
-from defaults.models import BusinessType
+from system.models import BusinessType
 
 User = get_user_model()
 

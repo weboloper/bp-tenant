@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
-from .models import Company, Product, Location, BusinessSettings, TaxRate
+from .models import Company, Product, Location, BusinessSettings, TaxRate, PaymentMethod
 
 
 @admin.register(Company)
@@ -109,3 +109,17 @@ class TaxRateAdmin(admin.ModelAdmin):
     list_filter = ['is_active', 'is_default', 'company']
     search_fields = ['name', 'company__name']
     raw_id_fields = ['company']
+
+
+@admin.register(PaymentMethod)
+class PaymentMethodAdmin(admin.ModelAdmin):
+    list_display = ['name', 'company', 'is_system', 'is_active', 'order']
+    list_filter = ['is_system', 'is_active', 'company']
+    search_fields = ['name', 'company__name']
+    ordering = ['company', 'order', 'name']
+    raw_id_fields = ['company']
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj and obj.is_system:
+            return ['name', 'is_system', 'source_code', 'company']
+        return ['is_system', 'source_code']

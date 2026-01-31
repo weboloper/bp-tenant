@@ -4,9 +4,7 @@ Usage: python manage.py create_defaults
 """
 from datetime import timedelta
 from django.core.management.base import BaseCommand
-from defaults.models import (
-    DefaultPaymentMethod,
-)
+from system.models import DefaultPaymentMethod
 
 
 class Command(BaseCommand):

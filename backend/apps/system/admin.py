@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import BusinessType, PaymentMethod
+from .models import BusinessType, DefaultPaymentMethod
+
 
 @admin.register(BusinessType)
 class BusinessTypeAdmin(admin.ModelAdmin):
@@ -8,15 +9,10 @@ class BusinessTypeAdmin(admin.ModelAdmin):
     search_fields = ['name', 'description']
     ordering = ['order', 'name']
 
-@admin.register(PaymentMethod)
-class PaymentMethodAdmin(admin.ModelAdmin):
-    list_display = ['name', 'company', 'is_system', 'is_active', 'order']
-    list_filter = ['is_system', 'is_active', 'company']
-    search_fields = ['name', 'company__name']
+
+@admin.register(DefaultPaymentMethod)
+class DefaultPaymentMethodAdmin(admin.ModelAdmin):
+    list_display = ['name', 'code', 'icon', 'is_active', 'order']
+    list_filter = ['is_active']
+    search_fields = ['name', 'code']
     ordering = ['order', 'name']
-    
-    def get_readonly_fields(self, request, obj=None):
-        # Sistem kayıtları değiştirilemez (is_system=True ise)
-        if obj and obj.is_system:
-            return ['name', 'is_system', 'source_code', 'company']
-        return ['is_system', 'source_code']
