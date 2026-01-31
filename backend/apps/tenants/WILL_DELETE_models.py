@@ -6,7 +6,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.translation import gettext_lazy as _
 from core.mixins import SoftDeleteMixin, TimestampMixin, TenantAwareMixin
 from core.managers import SoftDeleteManager, TenantAwareManager
-from defaults.models import BusinessType
+from system.models import BusinessType
 
 class Company(SoftDeleteMixin, TimestampMixin, models.Model):
     """

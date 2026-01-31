@@ -1,14 +1,7 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
-from .models import BusinessType, Company, Product
-
-@admin.register(BusinessType)
-class BusinessTypeAdmin(admin.ModelAdmin):
-    list_display = ['name', 'icon', 'is_active', 'order', 'created_at']
-    list_filter = ['is_active']
-    search_fields = ['name']
-    ordering = ['order', 'name']
+from .models import Company, Product, Location, BusinessSettings, TaxRate
 
 
 @admin.register(Company)
@@ -91,3 +84,28 @@ class ProductAdmin(admin.ModelAdmin):
         updated = queryset.update(is_active=False)
         self.message_user(request, f'{updated} products deactivated')
     deactivate_products.short_description = _('Deactivate selected products')
+
+@admin.register(Location)
+class LocationAdmin(admin.ModelAdmin):
+    list_display = ['name', 'company', 'city', 'phone', 'is_active']
+    list_filter = ['is_active', 'city', 'company']
+    search_fields = ['name', 'company__name', 'city', 'phone']
+    raw_id_fields = ['company', 'main_business_type']
+    filter_horizontal = ['additional_business_types']
+
+@admin.register(BusinessSettings)
+class BusinessSettingsAdmin(admin.ModelAdmin):
+    list_display = ['company', 'currency', 'tax_calculation', 'updated_at']
+    search_fields = ['company__name']
+    raw_id_fields = ['company']
+    
+    def has_add_permission(self, request):
+        # Genelde otomatik oluşur, manuel eklemeyi kısıtlayabiliriz
+        return False
+
+@admin.register(TaxRate)
+class TaxRateAdmin(admin.ModelAdmin):
+    list_display = ['name', 'rate', 'company', 'is_default', 'is_active']
+    list_filter = ['is_active', 'is_default', 'company']
+    search_fields = ['name', 'company__name']
+    raw_id_fields = ['company']
