@@ -4,11 +4,7 @@ Usage: python manage.py create_defaults
 """
 from datetime import timedelta
 from django.core.management.base import BaseCommand
-from platform_defaults.models import (
-
-    DefaultPaymentMethod,
-
-)
+from system.models import DefaultPaymentMethod
 
 
 class Command(BaseCommand):
@@ -17,7 +13,6 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
 
         self.create_payment_methods()
-
 
         self.stdout.write(
             self.style.SUCCESS('Successfully created all platform defaults')

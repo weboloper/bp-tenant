@@ -122,11 +122,13 @@ INSTALLED_APPS = [
     # Local apps
     'core',
     'accounts',
-    'platform_defaults',
+    # 'defaults',
+    'system',
     'providers',
     'tenants',
     'billing',
-    'business',
+    # 'business',
+    'staff',
     'notifications',
     'pages',
     'posts',
@@ -651,25 +653,10 @@ IYZICO_TEST_MODE = env.bool('IYZICO_TEST_MODE', default=DEBUG)  # Sandbox mode i
 FRONTEND_URL = env('FRONTEND_URL', default='http://localhost:3000')
 
 # ========================================
-# NOTIFICATION & MESSAGING SETTINGS
+# PUSH NOTIFICATION SETTINGS
 # ========================================
-
-# Notification Channels (in-app, email, push)
-NOTIFICATION_CHANNELS = ['in_app', 'email', 'push']
-
-# Messaging (SMS/WhatsApp/Telegram)
-SMS_PROVIDER = env('SMS_PROVIDER', default='mock')  # 'netgsm' or 'mock'
-USE_MOCK_SMS = env.bool('USE_MOCK_SMS', default=DEBUG)  # Use mock in development
-
-# NetGSM Configuration (for Turkey)
-NETGSM_CONFIG = {
-    'username': env('NETGSM_USERNAME', default=''),
-    'password': env('NETGSM_PASSWORD', default=''),
-    'sender_id': env('NETGSM_SENDER_ID', default='BPSALON'),
-}
-
-# SMS Base price for savings calculation
-SMS_BASE_PRICE = 0.10  # Base price per SMS in TRY
+# Note: SMS/Email provider configs are managed via database (providers app)
+# See: SMSProviderConfig, EmailProviderConfig models
 
 # Push Notifications (FCM - Firebase Cloud Messaging)
 FCM_SERVER_KEY = env('FCM_SERVER_KEY', default='')

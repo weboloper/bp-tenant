@@ -9,16 +9,12 @@ if TYPE_CHECKING:
 def get_email_provider() -> 'BaseEmailProvider':
     """
     Factory function - Aktif Email provider'ı döndürür
+
+    Provider configuration is managed via EmailProviderConfig model in database.
     """
     from providers.models import EmailProviderConfig
 
-    # from .mock import MockEmailProvider
-    
-    # if getattr(settings, 'USE_MOCK_EMAIL', False) or settings.DEBUG:
-    #     return MockEmailProvider()
-    
-    from django.conf import settings
-    
+    # Get default active provider from database
     config = EmailProviderConfig.objects.filter(is_default=True, is_active=True).first()
     
     if not config:

@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import ProtectedError
 from django.utils.translation import gettext_lazy as _
 
 
@@ -123,6 +124,56 @@ class SoftDeleteMixin(models.Model):
         self.deleted_at = None
         self.deleted_by = None
         self.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+
+
+class SystemProtectedMixin(models.Model):
+    """
+    Mixin for lookup tables that can have system-protected entries.
+
+    - is_system=True: Copied from platform defaults, cannot be deleted/edited
+    - is_system=False: Created by tenant
+
+    Usage:
+        class PaymentMethod(TenantAwareMixin, SystemProtectedMixin, models.Model):
+            name = models.CharField(max_length=100)
+    """
+    is_system = models.BooleanField(
+        _("Is System"),
+        default=False,
+        editable=False,
+        help_text=_("System records cannot be edited or deleted by tenant")
+    )
+    source_code = models.SlugField(
+        _("Source Code"),
+        max_length=50,
+        blank=True,
+        help_text=_("Reference to platform default (for system records)")
+    )
+
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        # System records: only allow order change
+        if self.pk and self.is_system:
+            # Get original from DB
+            original = self.__class__.objects.get(pk=self.pk)
+            # Restore protected fields
+            for field in self._get_protected_fields():
+                setattr(self, field, getattr(original, field))
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.is_system:
+            raise ProtectedError(
+                _("System records cannot be deleted"),
+                self
+            )
+        super().delete(*args, **kwargs)
+
+    def _get_protected_fields(self):
+        """Override in subclass to specify protected fields"""
+        return ['name', 'is_system', 'source_code']
 
 
 # =============================================================================

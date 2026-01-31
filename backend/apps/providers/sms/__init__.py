@@ -10,14 +10,12 @@ if TYPE_CHECKING:
 def get_sms_provider() -> BaseSMSProvider:
     """
     Factory function - Aktif SMS provider'ı döndürür
+
+    Provider configuration is managed via SMSProviderConfig model in database.
     """
     from providers.models import SMSProviderConfig
-    # from .mock import MockSMSProvider
-    # Development mode
-    # if getattr(settings, 'USE_MOCK_SMS', False) or settings.DEBUG:
-    #     return MockSMSProvider()
-    
-    # Default provider'ı al
+
+    # Get default active provider from database
     config = SMSProviderConfig.objects.filter(is_default=True, is_active=True).first()
     
     if not config:

@@ -119,25 +119,42 @@ if result['success']:
 
 ## Configuration
 
-### For Development (Mock SMS - No Real Sending)
+SMS provider configuration is managed via database, not environment variables.
 
-```bash
-# .env
-SMS_PROVIDER=mock
-USE_MOCK_SMS=True
+### Setup via Django Admin
+
+1. Go to Django Admin → Providers → SMS Provider Configs
+2. Create a new config:
+   - **Provider**: `netgsm`, `twilio`, or `mock`
+   - **Is Active**: ✓
+   - **Is Default**: ✓
+   - **Credentials**: JSON with provider-specific credentials
+
+### Example Credentials
+
+**NetGSM:**
+```json
+{
+  "username": "your_username",
+  "password": "your_password",
+  "sender_id": "BPSALON"
+}
 ```
 
-### For Production (Real NetGSM)
-
-```bash
-# .env
-SMS_PROVIDER=netgsm
-USE_MOCK_SMS=False
-
-NETGSM_USERNAME=your_username
-NETGSM_PASSWORD=your_password
-NETGSM_SENDER_ID=BPSALON
+**Twilio:**
+```json
+{
+  "account_sid": "ACxxxxx",
+  "auth_token": "xxxxx",
+  "from_number": "+1234567890"
+}
 ```
+
+**Mock (Development):**
+```json
+{}
+```
+In DEBUG mode, if no active provider is configured, mock provider is used automatically.
 
 ---
 

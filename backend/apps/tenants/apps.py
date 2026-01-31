@@ -6,5 +6,4 @@ class TenantsConfig(AppConfig):
     name = "tenants"
 
     def ready(self):
-        """Import signals when app is ready"""
         import tenants.signals  # noqa: F401
