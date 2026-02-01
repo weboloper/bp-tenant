@@ -493,7 +493,211 @@ Kullanılabilir bildirim tipleri (`notifications/constants.py`):
 
 ---
 
-## 10. Best Practices
+## 10. SMS Gönderim Akışı (Architecture)
+
+### Akış Diyagramı
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           SMS GÖNDERİM AKIŞI                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Uygulama Katmanı                    Servis Katmanı                Provider Katmanı
+  ─────────────────                   ──────────────                ────────────────
+
+  ┌──────────────┐
+  │   View /     │
+  │   Signal /   │
+  │   Task       │
+  └──────┬───────┘
+         │
+         ▼
+  ┌──────────────┐     ┌─────────────────────────────────────────────────────────┐
+  │   notify()   │────▶│  notifications/services/dispatcher.py                   │
+  │              │     │                                                          │
+  │  veya        │     │  1. Template'i çözümle (code → NotificationTemplate)    │
+  │              │     │  2. İçeriği render et (context → message)               │
+  │  send_sms()  │     │  3. Aktif kanalları belirle (sms/email/in_app)          │
+  └──────────────┘     └───────────────────────┬─────────────────────────────────┘
+                                               │
+                                               ▼
+                       ┌─────────────────────────────────────────────────────────┐
+                       │  notifications/channels/sms.py (SMSChannel)             │
+                       │                                                          │
+                       │  1. Telefon numarası validasyonu                        │
+                       │  2. Kredi hesaplama (calculate_credits)                 │
+                       │  3. Kredi kontrolü ──────────────────┐                  │
+                       │  4. OutboundMessage kaydı oluştur    │                  │
+                       │  5. Provider'a gönder                │                  │
+                       │  6. Başarılıysa kredi düş ───────────┤                  │
+                       │  7. OutboundMessage güncelle         │                  │
+                       └──────────────────────┬───────────────┼──────────────────┘
+                                              │               │
+                    ┌─────────────────────────┘               │
+                    │                                         │
+                    ▼                                         ▼
+  ┌─────────────────────────────────┐       ┌─────────────────────────────────┐
+  │  providers/sms/__init__.py      │       │  billing/services/sms.py        │
+  │                                 │       │                                  │
+  │  get_sms_provider()             │       │  SmsService:                     │
+  │         │                       │       │  - has_sufficient_balance()     │
+  │         ▼                       │       │  - get_balance()                │
+  │  providers/registry.py          │       │  - deduct_credits_bulk()        │
+  │  get_sms_backend()              │       │  - add_credits()                │
+  │         │                       │       │  - refund_credit()              │
+  │         ▼                       │       │                                  │
+  │  ┌─────────────────────┐        │       │  Models:                         │
+  │  │ settings.SMS_PROVIDER│       │       │  - SmsBalance                    │
+  │  │ (netgsm/twilio/mock)│        │       │  - SmsTransaction                │
+  │  └─────────┬───────────┘        │       └─────────────────────────────────┘
+  │            │                    │
+  │            ▼                    │
+  │  ┌─────────────────────────┐    │
+  │  │ NetGSMProvider          │    │
+  │  │ TwilioProvider          │    │
+  │  │ MockSMSProvider         │    │
+  │  └─────────┬───────────────┘    │
+  │            │                    │
+  └────────────┼────────────────────┘
+               │
+               ▼
+  ┌─────────────────────────────────┐
+  │  SMSResult                      │
+  │  - success: bool                │
+  │  - message_id: str              │
+  │  - status: SMSStatus            │
+  │  - credits_used: int            │
+  │  - error_message: str           │
+  └─────────────────────────────────┘
+```
+
+### Provider Yapılandırması
+
+Provider'lar **settings.py** üzerinden yapılandırılır (database tabanlı değil):
+
+```python
+# config/settings.py
+
+# SMS Provider
+SMS_PROVIDER = env('SMS_PROVIDER', default='mock')  # mock, netgsm, twilio
+
+# NetGSM (Production)
+NETGSM_USERCODE = env('NETGSM_USERCODE', default='')
+NETGSM_PASSWORD = env('NETGSM_PASSWORD', default='')
+NETGSM_MSGHEADER = env('NETGSM_MSGHEADER', default='')
+
+# Twilio (Alternative)
+TWILIO_ACCOUNT_SID = env('TWILIO_ACCOUNT_SID', default='')
+TWILIO_AUTH_TOKEN = env('TWILIO_AUTH_TOKEN', default='')
+TWILIO_FROM_NUMBER = env('TWILIO_FROM_NUMBER', default='')
+
+# Email Provider
+EMAIL_PROVIDER = env('EMAIL_PROVIDER', default='mock')  # mock, smtp, sendgrid
+```
+
+### Provider Registry
+
+```python
+# providers/registry.py
+
+BACKEND_MAP = {
+    'sms': {
+        'netgsm': 'providers.sms.netgsm.NetGSMProvider',
+        'twilio': 'providers.sms.twilio.TwilioProvider',
+        'mock': 'providers.sms.mock.MockSMSProvider',
+    },
+    'email': {
+        'smtp': 'providers.email.smtp.SMTPProvider',
+        'sendgrid': 'providers.email.sendgrid.SendgridProvider',
+        'mock': 'providers.email.mock.MockEmailProvider',
+    }
+}
+```
+
+### Billing Entegrasyonu
+
+SMS gönderiminde kredi yönetimi `billing` app tarafından sağlanır:
+
+```
+billing/
+├── models.py           # SmsBalance, SmsTransaction
+└── services/
+    ├── __init__.py     # Export: SmsService, InsufficientSmsCredit
+    ├── sms.py          # SmsService class
+    ├── payment.py      # PaymentService
+    ├── subscription.py # SubscriptionService
+    └── iyzico.py       # IyzicoService (payment gateway)
+```
+
+**Kredi Akışı:**
+
+```python
+# 1. Gönderim öncesi kontrol (notifications/channels/sms.py:64)
+if not SmsService.has_sufficient_balance(tenant, credits_needed):
+    return {'success': False, 'error': 'Insufficient SMS credits'}
+
+# 2. Başarılı gönderim sonrası düşüm (notifications/channels/sms.py:101)
+SmsService.deduct_credits_bulk(
+    tenant=tenant,
+    amount=credits_needed,
+    description=f"SMS: {recipient}",
+    metadata={'outbound_id': outbound.id}
+)
+```
+
+**Transaction Tipleri:**
+
+| Tip | Açıklama | amount |
+|-----|----------|--------|
+| `purchase` | Kredi satın alma | +N |
+| `usage` | SMS gönderim kullanımı | -N |
+| `refund` | İade | +N |
+
+### Dosya Yapısı
+
+```
+notifications/
+├── services/
+│   ├── __init__.py      # Export: notify, send_sms, send_email, ...
+│   └── dispatcher.py    # NotificationDispatcher, send_sms(), send_email()
+├── channels/
+│   ├── __init__.py      # get_channel()
+│   ├── base.py          # BaseChannel
+│   ├── sms.py           # SMSChannel (billing entegrasyonu burada)
+│   ├── email.py         # EmailChannel
+│   └── in_app.py        # InAppChannel
+├── models.py            # OutboundMessage, NotificationTemplate, ...
+└── constants.py         # Channel, DeliveryStatus, NotificationType
+
+providers/
+├── __init__.py
+├── registry.py          # get_sms_backend(), get_email_backend()
+├── sms/
+│   ├── __init__.py      # get_sms_provider()
+│   ├── base.py          # BaseSMSProvider, SMSResult, SMSStatus
+│   ├── netgsm.py        # NetGSMProvider
+│   ├── twilio.py        # TwilioProvider
+│   └── mock.py          # MockSMSProvider
+└── email/
+    ├── __init__.py      # get_email_provider()
+    ├── base.py          # BaseEmailProvider, EmailResult, EmailStatus
+    ├── smtp.py          # SMTPProvider
+    ├── sendgrid.py      # SendgridProvider
+    └── mock.py          # MockEmailProvider
+
+billing/
+├── models.py            # SmsBalance, SmsTransaction, Payment, ...
+└── services/
+    ├── __init__.py
+    ├── sms.py           # SmsService, InsufficientSmsCredit
+    ├── payment.py
+    ├── subscription.py
+    └── iyzico.py
+```
+
+---
+
+## 11. Best Practices
 
 1. **Template kullanın**: Mümkün olduğunca `notify()` fonksiyonunu template ile kullanın. Bu sayede içerikler admin'den yönetilebilir.
 
