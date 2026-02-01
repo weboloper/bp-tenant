@@ -518,27 +518,13 @@ SENTRY_DSN = env('SENTRY_DSN', default=None)
 #         release=env('APP_VERSION', default='1.0.0'),
 #     )
 
-# Email Configuration - Redis durumuna göre
-USE_ASYNC_EMAIL = REDIS_AVAILABLE and env('USE_ASYNC_EMAIL', default=False)
-print(f"[INFO] Async email: {'Enabled' if USE_ASYNC_EMAIL else 'Disabled'}")
-
-# Email backend configuration
-if DEBUG and not env('EMAIL_HOST_USER', default=''):
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-    print("[INFO] Using console email backend (development)")
-else:
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    print("[INFO] Using SMTP email backend")
-
-# Email Settings (Universal - works with any SMTP provider)
+# SMTP Settings (used when EMAIL_PROVIDER=smtp)
 EMAIL_HOST = env('EMAIL_HOST', default='localhost')
 EMAIL_PORT = env('EMAIL_PORT', default=587)
 EMAIL_USE_TLS = env('EMAIL_USE_TLS', default=True)
 EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
-
-# Email backend artık yukarıda Redis durumuna göre ayarlandı
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER or 'noreply@example.com')
 
 if CURRENT_ENV == 'staging':
     # Staging specific settings
@@ -652,11 +638,36 @@ IYZICO_TEST_MODE = env.bool('IYZICO_TEST_MODE', default=DEBUG)  # Sandbox mode i
 # Frontend URL (for payment callbacks and redirects)
 FRONTEND_URL = env('FRONTEND_URL', default='http://localhost:3000')
 
+# =============================================================================
+# PROVIDER CONFIGURATION (SMS & Email)
+# =============================================================================
+
+# Email Provider: smtp, sendgrid, mock
+EMAIL_PROVIDER = env('EMAIL_PROVIDER', default='mock')
+
+# SMS Provider: netgsm, twilio, mock
+SMS_PROVIDER = env('SMS_PROVIDER', default='mock')
+
+# Async task processing (requires Redis)
+CELERY_ENABLED = REDIS_AVAILABLE and env.bool('CELERY_ENABLED', default=False)
+print(f"[INFO] Celery enabled: {CELERY_ENABLED}")
+
+# SendGrid Configuration
+SENDGRID_API_KEY = env('SENDGRID_API_KEY', default='')
+
+# NetGSM Configuration
+NETGSM_USERNAME = env('NETGSM_USERNAME', default='')
+NETGSM_PASSWORD = env('NETGSM_PASSWORD', default='')
+NETGSM_HEADER = env('NETGSM_HEADER', default='')
+
+# Twilio Configuration
+TWILIO_ACCOUNT_SID = env('TWILIO_ACCOUNT_SID', default='')
+TWILIO_AUTH_TOKEN = env('TWILIO_AUTH_TOKEN', default='')
+TWILIO_FROM_NUMBER = env('TWILIO_FROM_NUMBER', default='')
+
 # ========================================
 # PUSH NOTIFICATION SETTINGS
 # ========================================
-# Note: SMS/Email provider configs are managed via database (providers app)
-# See: SMSProviderConfig, EmailProviderConfig models
 
 # Push Notifications (FCM - Firebase Cloud Messaging)
 FCM_SERVER_KEY = env('FCM_SERVER_KEY', default='')
