@@ -395,6 +395,14 @@ SIMPLE_JWT = {
 EMAIL_PROVIDER = env('EMAIL_PROVIDER', default='mock')  # smtp, sendgrid, mock
 SMS_PROVIDER = env('SMS_PROVIDER', default='mock')      # netgsm, twilio, mock
 
+# Email backend (based on provider)
+if EMAIL_PROVIDER == 'mock':
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+elif EMAIL_PROVIDER == 'sendgrid':
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.SMTPBackend'
+else:  # smtp
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.SMTPBackend'
+
 # SMTP settings (used when EMAIL_PROVIDER=smtp)
 EMAIL_HOST = env('EMAIL_HOST', default='localhost')
 EMAIL_PORT = env.int('EMAIL_PORT', default=587)
@@ -498,6 +506,56 @@ SUMMERNOTE_CONFIG = {
     'attachment_require_authentication': True,
     'attachment_filesize_limit': 1024 * 1024 * 10,  # 10MB
     'attachment_absolute_uri': False,
+}
+
+
+# =============================================================================
+# LOGGING
+# =============================================================================
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '\n[{levelname}] {name}:\n{message}\n',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+            'level': 'DEBUG',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
+    'loggers': {
+        # Provider loggers (SMS/Email mock output)
+        'providers': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'providers.sms': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'providers.email': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'notifications': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
 }
 
 

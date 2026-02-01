@@ -8,14 +8,14 @@ from django.utils.module_loading import import_string
 
 BACKEND_MAP = {
     'email': {
-        'smtp': 'providers.email.smtp.SMTPBackend',
-        'sendgrid': 'providers.email.sendgrid.SendGridBackend',
-        'mock': 'providers.email.mock.MockBackend',
+        'smtp': 'providers.email.smtp.SMTPProvider',
+        'sendgrid': 'providers.email.sendgrid.SendgridProvider',
+        'mock': 'providers.email.mock.MockEmailProvider',
     },
     'sms': {
-        'netgsm': 'providers.sms.netgsm.NetGSMBackend',
-        'twilio': 'providers.sms.twilio.TwilioBackend',
-        'mock': 'providers.sms.mock.MockBackend',
+        'netgsm': 'providers.sms.netgsm.NetGSMProvider',
+        'twilio': 'providers.sms.twilio.TwilioProvider',
+        'mock': 'providers.sms.mock.MockSMSProvider',
     }
 }
 

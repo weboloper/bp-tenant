@@ -4,6 +4,9 @@ import logging
 from typing import Optional, Dict, Any, List, Union
 from django.conf import settings
 from django.db import transaction
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from django.core.mail import EmailMultiAlternatives
 
 from notifications.models import NotificationTemplate, NotificationPreference
 from notifications.constants import Channel, NotificationType
@@ -14,12 +17,12 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# LOW-LEVEL SEND FUNCTIONS (direct provider access)
+# EMAIL FUNCTIONS
 # =============================================================================
 
 def send_email(to: str, subject: str, body: str, sync: bool = False, **kwargs) -> Any:
     """
-    Send email. Uses Celery if CELERY_ENABLED=True, otherwise sync.
+    Send plain email. Uses Celery if CELERY_ENABLED=True, otherwise sync.
 
     Args:
         to: Recipient email address
@@ -39,6 +42,101 @@ def send_email(to: str, subject: str, body: str, sync: bool = False, **kwargs) -
         return backend.send(to=to, subject=subject, body=body, **kwargs)
 
 
+def send_template_email(
+    to: Union[str, List[str]],
+    subject: str,
+    template_name: str,
+    context: Dict[str, Any] = None,
+    sync: bool = False,
+    from_email: str = None,
+) -> bool:
+    """
+    Send email using Django template.
+
+    Args:
+        to: Recipient email address(es)
+        subject: Email subject
+        template_name: Template path (e.g., 'accounts/emails/welcome')
+        context: Template context variables
+        sync: Force synchronous sending (default: False)
+        from_email: From email address (optional)
+
+    Returns:
+        True if sent successfully, False otherwise
+
+    Example:
+        send_template_email(
+            to='user@example.com',
+            subject='Welcome!',
+            template_name='accounts/emails/welcome',
+            context={'user': user, 'site_name': 'MyApp'}
+        )
+    """
+    # Normalize recipient list
+    if isinstance(to, str):
+        recipient_list = [to]
+    else:
+        recipient_list = to
+
+    context = context or {}
+    from_email = from_email or getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@example.com')
+
+    # Async sending
+    if getattr(settings, 'CELERY_ENABLED', False) and not sync:
+        from notifications.tasks import send_template_email_task
+        return send_template_email_task.delay(
+            recipient_list=recipient_list,
+            subject=subject,
+            template_name=template_name,
+            context=context,
+            from_email=from_email
+        )
+
+    # Sync sending
+    return _send_template_email_sync(
+        recipient_list=recipient_list,
+        subject=subject,
+        template_name=template_name,
+        context=context,
+        from_email=from_email
+    )
+
+
+def _send_template_email_sync(
+    recipient_list: List[str],
+    subject: str,
+    template_name: str,
+    context: Dict[str, Any],
+    from_email: str,
+) -> bool:
+    """Internal: Send template email synchronously."""
+    try:
+        # Render template
+        html_template_path = f'{template_name}.html'
+        html_content = render_to_string(html_template_path, context)
+        text_content = strip_tags(html_content)
+
+        # Create and send email
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=from_email,
+            to=recipient_list
+        )
+        email.attach_alternative(html_content, "text/html")
+        email.send()
+
+        logger.info(f"Email sent to {len(recipient_list)} recipients: {subject}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send email: {e}")
+        return False
+
+
+# =============================================================================
+# SMS FUNCTIONS
+# =============================================================================
+
 def send_sms(to: str, message: str, sync: bool = False, **kwargs) -> Any:
     """
     Send SMS. Uses Celery if CELERY_ENABLED=True, otherwise sync.
@@ -57,7 +155,7 @@ def send_sms(to: str, message: str, sync: bool = False, **kwargs) -> Any:
         return send_sms_task.delay(to, message, **kwargs)
     else:
         backend = get_sms_backend()
-        return backend.send(to=to, message=message, **kwargs)
+        return backend.send(phone=to, message=message, **kwargs)
 
 
 # =============================================================================
