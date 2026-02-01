@@ -2,13 +2,67 @@
 
 import logging
 from typing import Optional, Dict, Any, List, Union
+from django.conf import settings
 from django.db import transaction
 
 from notifications.models import NotificationTemplate, NotificationPreference
 from notifications.constants import Channel, NotificationType
 from notifications.channels import get_channel
+from providers.registry import get_email_backend, get_sms_backend
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# LOW-LEVEL SEND FUNCTIONS (direct provider access)
+# =============================================================================
+
+def send_email(to: str, subject: str, body: str, sync: bool = False, **kwargs) -> Any:
+    """
+    Send email. Uses Celery if CELERY_ENABLED=True, otherwise sync.
+
+    Args:
+        to: Recipient email address
+        subject: Email subject
+        body: Email body (HTML or plain text)
+        sync: Force synchronous sending (default: False)
+        **kwargs: Additional backend-specific options
+
+    Returns:
+        Task result (async) or send result (sync)
+    """
+    if getattr(settings, 'CELERY_ENABLED', False) and not sync:
+        from notifications.tasks import send_email_task
+        return send_email_task.delay(to, subject, body, **kwargs)
+    else:
+        backend = get_email_backend()
+        return backend.send(to=to, subject=subject, body=body, **kwargs)
+
+
+def send_sms(to: str, message: str, sync: bool = False, **kwargs) -> Any:
+    """
+    Send SMS. Uses Celery if CELERY_ENABLED=True, otherwise sync.
+
+    Args:
+        to: Recipient phone number
+        message: SMS message content
+        sync: Force synchronous sending (default: False)
+        **kwargs: Additional backend-specific options
+
+    Returns:
+        Task result (async) or send result (sync)
+    """
+    if getattr(settings, 'CELERY_ENABLED', False) and not sync:
+        from notifications.tasks import send_sms_task
+        return send_sms_task.delay(to, message, **kwargs)
+    else:
+        backend = get_sms_backend()
+        return backend.send(to=to, message=message, **kwargs)
+
+
+# =============================================================================
+# NOTIFICATION DISPATCHER (template-based)
+# =============================================================================
 
 
 class NotificationDispatcher:
