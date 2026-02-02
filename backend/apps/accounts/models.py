@@ -89,6 +89,14 @@ class User(AbstractBaseUser,PermissionsMixin):
             pass
         return None
 
+    def get_full_name(self):
+        """Django convention - Profile'dan isim çeker"""
+        if hasattr(self, 'profile'):
+            full_name = f"{self.profile.first_name} {self.profile.last_name}".strip()
+            if full_name:
+                return full_name
+        return self.username
+
     def has_company_access(self):
         """Check if user has access to any company"""
         return self.current_company is not None
