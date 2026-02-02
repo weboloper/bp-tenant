@@ -15,7 +15,7 @@ class Channel(models.TextChoices):
 
 class NotificationType(models.TextChoices):
     """Notification type identifiers"""
-    
+
     # ===== SYSTEM → TENANT =====
     SYSTEM_ANNOUNCEMENT = 'system_announcement', _('System Announcement')
     BILLING_ALERT = 'billing_alert', _('Billing Alert')
@@ -24,22 +24,10 @@ class NotificationType(models.TextChoices):
     SUBSCRIPTION_EXPIRY = 'subscription_expiry', _('Subscription Expiry')
     SUBSCRIPTION_EXPIRED = 'subscription_expired', _('Subscription Expired')
     FEATURE_UPDATE = 'feature_update', _('Feature Update')
-    
-    # ===== TENANT → STAFF (In-App) =====
-    APPOINTMENT_NEW = 'appointment_new', _('New Appointment')
-    APPOINTMENT_CANCELLED = 'appointment_cancelled', _('Appointment Cancelled')
-    APPOINTMENT_UPDATED = 'appointment_updated', _('Appointment Updated')
-    APPOINTMENT_REMINDER_STAFF = 'appointment_reminder_staff', _('Appointment Reminder (Staff)')
-    CLIENT_NEW = 'client_new', _('New Client')
+
+    # ===== TENANT → USER (In-App/Email/SMS) =====
     TASK_ASSIGNED = 'task_assigned', _('Task Assigned')
-    
-    # ===== TENANT → CLIENT (SMS/Email) =====
-    APPOINTMENT_CONFIRMATION = 'appointment_confirmation', _('Appointment Confirmation')
-    APPOINTMENT_REMINDER = 'appointment_reminder', _('Appointment Reminder')
-    APPOINTMENT_CANCELLED_CLIENT = 'appointment_cancelled_client', _('Appointment Cancelled (Client)')
-    BIRTHDAY_GREETING = 'birthday_greeting', _('Birthday Greeting')
     CAMPAIGN = 'campaign', _('Campaign')
-    FEEDBACK_REQUEST = 'feedback_request', _('Feedback Request')
     CUSTOM = 'custom', _('Custom Message')
 
 
@@ -66,5 +54,4 @@ class Priority(models.TextChoices):
 
 class RecipientType(models.TextChoices):
     """Who can receive notifications"""
-    USER = 'user', _('User (Staff)')
-    CLIENT = 'client', _('Client')
+    USER = 'user', _('User')

@@ -166,22 +166,22 @@ def send_sms(to: str, message: str, sync: bool = False, **kwargs) -> Any:
 class NotificationDispatcher:
     """
     Central notification dispatcher - TEK ENTRY POINT
-    
+
     Usage:
         notify(
             code="appointment_reminder",
             tenant=company,
-            recipient=client,
+            recipient=user,
             context={"date": "15 Ocak", "time": "14:00"}
         )
     """
-    
+
     @classmethod
     def notify(
         cls,
         code: str,
         tenant,
-        recipient,  # Client veya User
+        recipient,  # User instance
         context: Dict[str, Any],
         channels: Optional[List[str]] = None,
         sent_by=None,
@@ -189,15 +189,15 @@ class NotificationDispatcher:
     ) -> Dict[str, Any]:
         """
         Send notification through appropriate channels
-        
+
         Args:
             code: Template code (e.g., "appointment_reminder")
             tenant: Company instance
-            recipient: Client or User instance
+            recipient: User instance
             context: Template variables
             channels: Override channels (optional, uses template if None)
             sent_by: User who triggered notification
-            
+
         Returns:
             {
                 "success": bool,
@@ -380,25 +380,17 @@ class NotificationDispatcher:
     @classmethod
     def _resolve_recipient(cls, recipient) -> Dict[str, Any]:
         """
-        Extract recipient info from Client or User
+        Extract recipient info from User
         """
-        # Check if it's a Client
-        if hasattr(recipient, 'phone') and hasattr(recipient, 'email') and hasattr(recipient, 'full_name'):
-            # It's a Client
-            return {
-                'type': 'client',
-                'instance': recipient,
-                'phone': str(recipient.phone) if recipient.phone else None,
-                'email': recipient.email,
-                'name': recipient.full_name,
-                'user': recipient.user if hasattr(recipient, 'user') else None
-            }
-        
-        # It's a User
+        # Get phone from profile if available
+        phone = None
+        if hasattr(recipient, 'profile') and hasattr(recipient.profile, 'phone'):
+            phone = recipient.profile.phone
+
         return {
             'type': 'user',
             'instance': recipient,
-            'phone': getattr(recipient, 'phone', None),
+            'phone': phone,
             'email': recipient.email,
             'name': recipient.get_full_name() or recipient.username,
             'user': recipient
@@ -429,34 +421,34 @@ class NotificationDispatcher:
         **kwargs
     ) -> Dict[str, Any]:
         """Send through specific channel"""
-        
+
         if channel == Channel.SMS:
             return channel_instance.send(
                 recipient=recipient_info['phone'],
                 content=rendered,
                 tenant=tenant,
-                client=recipient_info['instance'] if recipient_info['type'] == 'client' else None,
                 sent_by=sent_by,
                 notification_type=template.notification_type,
+                recipient_name=recipient_info.get('name', ''),
                 **kwargs
             )
-        
+
         elif channel == Channel.EMAIL:
             return channel_instance.send(
                 recipient=recipient_info['email'],
                 content=rendered,
                 tenant=tenant,
-                client=recipient_info['instance'] if recipient_info['type'] == 'client' else None,
                 sent_by=sent_by,
                 notification_type=template.notification_type,
+                recipient_name=recipient_info.get('name', ''),
                 **kwargs
             )
-        
+
         elif channel == Channel.IN_APP:
             user = recipient_info.get('user')
             if not user:
                 return {'success': False, 'error': 'No user for in-app'}
-            
+
             return channel_instance.send(
                 recipient=user,
                 content=rendered,
@@ -466,7 +458,7 @@ class NotificationDispatcher:
                 priority=template.default_priority,
                 **kwargs
             )
-        
+
         return {'success': False, 'error': f'Unknown channel: {channel}'}
 
 
@@ -480,14 +472,14 @@ def notify(
 ) -> Dict[str, Any]:
     """
     Shortcut for NotificationDispatcher.notify()
-    
+
     Usage:
         from notifications.services import notify
-        
+
         notify(
             code="appointment_reminder",
             tenant=company,
-            recipient=client,
+            recipient=user,
             context={"date": "15 Ocak", "time": "14:00"}
         )
     """

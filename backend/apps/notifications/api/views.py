@@ -106,16 +106,13 @@ class OutboundMessageViewSet(viewsets.ReadOnlyModelViewSet):
         # Apply filters
         channel = self.request.query_params.get('channel')
         status_filter = self.request.query_params.get('status')
-        client_id = self.request.query_params.get('client_id')
 
         if channel:
             qs = qs.filter(channel=channel)
         if status_filter:
             qs = qs.filter(status=status_filter)
-        if client_id:
-            qs = qs.filter(client_id=client_id)
 
-        return qs.select_related('client', 'sent_by').order_by('-created_at')
+        return qs.select_related('sent_by').order_by('-created_at')
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -256,22 +253,12 @@ class SendDirectSMSView(views.APIView):
             )
 
         from notifications.channels import get_channel
-        from clients.models import Client
-
-        client = None
-        client_id = serializer.validated_data.get('client_id')
-        if client_id:
-            try:
-                client = Client.objects.get(id=client_id)
-            except Client.DoesNotExist:
-                pass
 
         channel = get_channel(Channel.SMS)
         result = channel.send(
             recipient=serializer.validated_data['phone'],
             content={'content': serializer.validated_data['message']},
             tenant=tenant,
-            client=client,
             sent_by=request.user,
             notification_type='custom'
         )
@@ -295,15 +282,6 @@ class SendDirectEmailView(views.APIView):
             )
 
         from notifications.channels import get_channel
-        from clients.models import Client
-
-        client = None
-        client_id = serializer.validated_data.get('client_id')
-        if client_id:
-            try:
-                client = Client.objects.get(id=client_id)
-            except Client.DoesNotExist:
-                pass
 
         channel = get_channel(Channel.EMAIL)
         result = channel.send(
@@ -314,7 +292,6 @@ class SendDirectEmailView(views.APIView):
                 'body_html': serializer.validated_data.get('body_html', ''),
             },
             tenant=tenant,
-            client=client,
             sent_by=request.user,
             notification_type='custom'
         )

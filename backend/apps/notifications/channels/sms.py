@@ -25,24 +25,24 @@ class SMSChannel(BaseChannel):
         recipient: str,  # Phone number
         content: Dict[str, str],
         tenant=None,
-        client=None,
         sent_by=None,
         notification_type: str = '',
         check_credit: bool = True,
+        recipient_name: str = '',
         **kwargs
     ) -> Dict[str, Any]:
         """
         Send SMS
-        
+
         Args:
             recipient: Phone number
             content: {"content": "Message text"}
             tenant: Company (required for credit deduction)
-            client: Client instance
             sent_by: User
             notification_type: For logging
             check_credit: Whether to check/deduct credits
-            
+            recipient_name: Name of recipient (optional)
+
         Returns:
             {"success": bool, "message_id": str, "outbound_id": int, ...}
         """
@@ -74,8 +74,7 @@ class SMSChannel(BaseChannel):
             company=tenant,
             channel=Channel.SMS,
             recipient_phone=provider.normalize_phone(recipient),
-            recipient_name=client.full_name if client else '',
-            client=client,
+            recipient_name=recipient_name,
             notification_type=notification_type,
             content=message_text,
             status=DeliveryStatus.PENDING,

@@ -14,9 +14,8 @@ from notifications.constants import NotificationType, Priority
 class Notification(TimestampMixin, models.Model):
     """
     In-App Notification - UI'da görünen bildirimler
-    
-    Sadece User'lara gönderilir (Client değil).
-    Client'lara SMS/Email gönderilir.
+
+    User'lara gönderilir.
     """
     
     # ===== RECIPIENT =====

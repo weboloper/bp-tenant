@@ -82,7 +82,7 @@ class NotificationTemplate(TimestampMixin, models.Model):
         _('Variables'),
         default=dict,
         blank=True,
-        help_text=_('{"client_name": "Client full name", "date": "Appointment date"}')
+        help_text=_('{"user_name": "User full name", "date": "Date"}')
     )
     
     is_active = models.BooleanField(_('Is Active'), default=True)

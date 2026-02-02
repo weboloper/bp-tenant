@@ -65,7 +65,7 @@ class OutboundMessageSerializer(serializers.ModelSerializer):
         model = OutboundMessage
         fields = [
             'id', 'channel', 'recipient', 'recipient_phone', 'recipient_email',
-            'recipient_name', 'client', 'notification_type',
+            'recipient_name', 'notification_type',
             'subject', 'content', 'content_html',
             'status', 'provider_name', 'provider_message_id',
             'credits_used', 'error_message',
@@ -161,12 +161,8 @@ class SendNotificationSerializer(serializers.Serializer):
         max_length=50,
         help_text="Template code, e.g., 'appointment_reminder'"
     )
-    recipient_type = serializers.ChoiceField(
-        choices=['client', 'user'],
-        help_text="Type of recipient"
-    )
     recipient_id = serializers.IntegerField(
-        help_text="ID of the recipient (Client or User)"
+        help_text="ID of the recipient User"
     )
     context = serializers.DictField(
         child=serializers.CharField(),
@@ -181,20 +177,12 @@ class SendNotificationSerializer(serializers.Serializer):
     )
 
     def validate(self, data):
-        recipient_type = data.get('recipient_type')
         recipient_id = data.get('recipient_id')
 
-        if recipient_type == 'client':
-            from clients.models import Client
-            try:
-                data['recipient'] = Client.objects.get(id=recipient_id)
-            except Client.DoesNotExist:
-                raise serializers.ValidationError({'recipient_id': 'Client not found'})
-        else:
-            try:
-                data['recipient'] = User.objects.get(id=recipient_id)
-            except User.DoesNotExist:
-                raise serializers.ValidationError({'recipient_id': 'User not found'})
+        try:
+            data['recipient'] = User.objects.get(id=recipient_id)
+        except User.DoesNotExist:
+            raise serializers.ValidationError({'recipient_id': 'User not found'})
 
         return data
 
@@ -204,7 +192,6 @@ class SendDirectSMSSerializer(serializers.Serializer):
 
     phone = serializers.CharField(max_length=20)
     message = serializers.CharField(max_length=918)  # 6 SMS max
-    client_id = serializers.IntegerField(required=False)
 
     def validate_phone(self, value):
         from providers.sms import get_sms_provider
@@ -221,7 +208,6 @@ class SendDirectEmailSerializer(serializers.Serializer):
     subject = serializers.CharField(max_length=255)
     body_text = serializers.CharField()
     body_html = serializers.CharField(required=False, allow_blank=True)
-    client_id = serializers.IntegerField(required=False)
 
 
 # ==================== SMS UTILITIES ====================

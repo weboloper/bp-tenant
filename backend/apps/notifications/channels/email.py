@@ -24,21 +24,21 @@ class EmailChannel(BaseChannel):
         recipient: str,  # Email address
         content: Dict[str, str],
         tenant=None,
-        client=None,
         sent_by=None,
         notification_type: str = '',
+        recipient_name: str = '',
         **kwargs
     ) -> Dict[str, Any]:
         """
         Send Email
-        
+
         Args:
             recipient: Email address
             content: {"subject": "", "body_text": "", "body_html": ""}
             tenant: Company
-            client: Client instance
             sent_by: User
-            
+            recipient_name: Name of recipient (optional)
+
         Returns:
             {"success": bool, "message_id": str, "outbound_id": int, ...}
         """
@@ -64,8 +64,7 @@ class EmailChannel(BaseChannel):
             company=tenant,
             channel=Channel.EMAIL,
             recipient_email=recipient,
-            recipient_name=client.full_name if client else '',
-            client=client,
+            recipient_name=recipient_name,
             notification_type=notification_type,
             subject=subject,
             content=body_text,

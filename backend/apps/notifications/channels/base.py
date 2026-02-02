@@ -22,20 +22,18 @@ class BaseChannel(ABC):
         recipient: Any,
         content: Dict[str, str],
         tenant=None,
-        client=None,
         sent_by=None,
         **kwargs
     ) -> Dict[str, Any]:
         """
         Send notification through this channel
-        
+
         Args:
             recipient: Phone number, email, or User instance
             content: Rendered template content
             tenant: Company instance
-            client: Client instance (optional)
             sent_by: User who triggered (optional)
-            
+
         Returns:
             Dict with success status and details
         """

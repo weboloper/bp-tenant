@@ -28,17 +28,7 @@ class OutboundMessage(TenantAwareMixin, TimestampMixin, models.Model):
     recipient_phone = models.CharField(_('Phone'), max_length=20, blank=True)
     recipient_email = models.EmailField(_('Email'), blank=True)
     recipient_name = models.CharField(_('Name'), max_length=200, blank=True)
-    
-    # İlişkili Client (opsiyonel)
-    # client = models.ForeignKey(
-    #     'clients.Client',
-    #     on_delete=models.SET_NULL,
-    #     null=True,
-    #     blank=True,
-    #     related_name='outbound_messages',
-    #     verbose_name=_('Client')
-    # )
-    
+
     # ===== CONTENT =====
     notification_type = models.CharField(
         _('Notification Type'),

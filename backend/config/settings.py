@@ -103,7 +103,6 @@ INSTALLED_APPS = [
     'tenants',
     'billing',
     'staff',
-    'clients',
     'notifications',
     'pages',
     'posts',
