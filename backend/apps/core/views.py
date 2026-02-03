@@ -2,14 +2,13 @@
 Core application views
 Basic views for health checks and general pages
 """
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.conf import settings
 from django.utils import timezone
 from core.utils import DateUtils
-from notifications.services import send_template_email, send_sms
-import sys
+from notifications.services import send_template_email
 import platform
 
 
@@ -173,78 +172,78 @@ def test_email(request):
     return render(request, 'core/test_email.html', context)
 
 
-def test_sms(request):
-    """
-    SMS test page - notifications.services.send_sms test
-    Tests both sync and async SMS sending modes
-    """
-    if request.method == 'POST':
-        sms_type = request.POST.get('sms_type')
-        recipient_phone = request.POST.get('recipient_phone', '').strip()
-        message = request.POST.get('message', '').strip()
+# def test_sms(request):
+#     """
+#     SMS test page - notifications.services.send_sms test
+#     Tests both sync and async SMS sending modes
+#     """
+#     if request.method == 'POST':
+#         sms_type = request.POST.get('sms_type')
+#         recipient_phone = request.POST.get('recipient_phone', '').strip()
+#         message = request.POST.get('message', '').strip()
 
-        # Basic validation
-        if not recipient_phone:
-            messages.error(request, 'Telefon numarasi gerekli')
-            return redirect('test_sms')
+#         # Basic validation
+#         if not recipient_phone:
+#             messages.error(request, 'Telefon numarasi gerekli')
+#             return redirect('test_sms')
 
-        if not message:
-            messages.error(request, 'Mesaj gerekli')
-            return redirect('test_sms')
+#         if not message:
+#             messages.error(request, 'Mesaj gerekli')
+#             return redirect('test_sms')
 
-        try:
-            if sms_type == 'async':
-                send_sms(
-                    to=recipient_phone,
-                    message=message,
-                    sync=False
-                )
-                celery_enabled = getattr(settings, 'CELERY_ENABLED', False)
-                if celery_enabled:
-                    messages.success(request, f'Async SMS Celery queue\'ya eklendi: {recipient_phone}')
-                else:
-                    messages.success(request, f'SMS gonderildi (Celery kapali, sync fallback): {recipient_phone}')
+#         try:
+#             if sms_type == 'async':
+#                 send_sms(
+#                     to=recipient_phone,
+#                     message=message,
+#                     sync=False
+#                 )
+#                 celery_enabled = getattr(settings, 'CELERY_ENABLED', False)
+#                 if celery_enabled:
+#                     messages.success(request, f'Async SMS Celery queue\'ya eklendi: {recipient_phone}')
+#                 else:
+#                     messages.success(request, f'SMS gonderildi (Celery kapali, sync fallback): {recipient_phone}')
 
-            elif sms_type == 'sync':
-                send_sms(
-                    to=recipient_phone,
-                    message=message,
-                    sync=True
-                )
-                messages.success(request, f'Sync SMS basariyla gonderildi: {recipient_phone}')
+#             elif sms_type == 'sync':
+#                 send_sms(
+#                     to=recipient_phone,
+#                     message=message,
+#                     sync=True
+#                 )
+#                 messages.success(request, f'Sync SMS basariyla gonderildi: {recipient_phone}')
 
-        except Exception as e:
-            messages.error(request, f'SMS gonderimi basarisiz: {str(e)}')
+#         except Exception as e:
+#             messages.error(request, f'SMS gonderimi basarisiz: {str(e)}')
 
-        return redirect('test_sms')
+#         return redirect('test_sms')
 
-    # GET request - show test form
-    sms_provider = getattr(settings, 'SMS_PROVIDER', 'mock')
+#     # GET request - show test form
+#     sms_provider = getattr(settings, 'SMS_PROVIDER', 'mock')
 
-    # Provider-specific config info
-    provider_config = {}
-    if sms_provider == 'netgsm':
-        provider_config = {
-            'username': getattr(settings, 'NETGSM_USERNAME', ''),
-            'header': getattr(settings, 'NETGSM_HEADER', ''),
-        }
-    elif sms_provider == 'twilio':
-        provider_config = {
-            'account_sid': getattr(settings, 'TWILIO_ACCOUNT_SID', '')[:10] + '...' if getattr(settings, 'TWILIO_ACCOUNT_SID', '') else '',
-            'from_number': getattr(settings, 'TWILIO_FROM_NUMBER', ''),
-        }
+#     # Provider-specific config info
+#     provider_config = {}
+#     if sms_provider == 'netgsm':
+#         provider_config = {
+#             'username': getattr(settings, 'NETGSM_USERNAME', ''),
+#             'header': getattr(settings, 'NETGSM_HEADER', ''),
+#         }
+#     elif sms_provider == 'twilio':
+#         provider_config = {
+#             'account_sid': getattr(settings, 'TWILIO_ACCOUNT_SID', '')[:10] + '...' if getattr(settings, 'TWILIO_ACCOUNT_SID', '') else '',
+#             'from_number': getattr(settings, 'TWILIO_FROM_NUMBER', ''),
+#         }
 
-    context = {
-        'frontend_url': settings.FRONTEND_URL,
-        'current_env': getattr(settings, 'CURRENT_ENV', 'development'),
-        'celery_enabled': getattr(settings, 'CELERY_ENABLED', False),
-        'sms_provider': sms_provider,
-        'provider_config': provider_config,
-        'sample_messages': [
-            'Merhaba! Bu bir test SMS mesajidir.',
-            'Dogrulama kodunuz: 123456',
-            'Randevunuz 15 Ocak 2025 saat 14:00\'da onaylandi.',
-        ],
-    }
+#     context = {
+#         'frontend_url': settings.FRONTEND_URL,
+#         'current_env': getattr(settings, 'CURRENT_ENV', 'development'),
+#         'celery_enabled': getattr(settings, 'CELERY_ENABLED', False),
+#         'sms_provider': sms_provider,
+#         'provider_config': provider_config,
+#         'sample_messages': [
+#             'Merhaba! Bu bir test SMS mesajidir.',
+#             'Dogrulama kodunuz: 123456',
+#             'Randevunuz 15 Ocak 2025 saat 14:00\'da onaylandi.',
+#         ],
+#     }
 
-    return render(request, 'core/test_sms.html', context)
+#     return render(request, 'core/test_sms.html', context)

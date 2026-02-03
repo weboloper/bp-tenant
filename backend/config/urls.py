@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from core.views import home, health_check, api_root, test_email, test_sms
+from core.views import home, health_check, api_root, test_email
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 # Custom error handlers
@@ -35,7 +35,7 @@ urlpatterns = [
     path('', home, name='home'),
     path('health/', health_check, name='health_check'),
     path('test-email/', test_email, name='test_email'),
-    path('test-sms/', test_sms, name='test_sms'),
+    # path('test-sms/', test_sms, name='test_sms'),
 
 
     # App URLs
