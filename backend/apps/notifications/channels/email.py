@@ -54,11 +54,17 @@ class EmailChannel(BaseChannel):
         # Validate email
         if not provider.validate_email(recipient):
             return {'success': False, 'error': 'Invalid email address'}
-        
+
+        # Check plan access
+        if tenant:
+            from billing.services import SubscriptionService
+            if not SubscriptionService.check_feature_access(tenant, 'email'):
+                return {'success': False, 'error': 'Plan does not include Email'}
+
         # Get from settings
         from_email = kwargs.get('from_email') or getattr(provider, 'default_from', None)
         from_name = kwargs.get('from_name') or (tenant.name if tenant else None)
-        
+
         # Create outbound record
         outbound = OutboundMessage.objects.create(
             company=tenant,

@@ -55,10 +55,16 @@ class SMSChannel(BaseChannel):
         # Validate phone
         if not provider.validate_phone(recipient):
             return {'success': False, 'error': 'Invalid phone number'}
-        
+
+        # Check plan access
+        if tenant:
+            from billing.services import SubscriptionService
+            if not SubscriptionService.check_feature_access(tenant, 'sms'):
+                return {'success': False, 'error': 'Plan does not include SMS'}
+
         # Calculate credits
         credits_needed = provider.calculate_credits(message_text)
-        
+
         # Check credits (if tenant provided)
         if check_credit and tenant:
             if not SmsCreditService.has_sufficient_balance(tenant, credits_needed):

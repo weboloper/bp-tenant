@@ -14,6 +14,7 @@ from notifications.models import (
 )
 from notifications.services import notify, NotificationDispatcher
 from notifications.constants import Channel
+from core.mixins import PlanFeatureRequiredMixin
 
 from .serializers import (
     NotificationSerializer,
@@ -240,9 +241,10 @@ class SendNotificationView(views.APIView):
         return Response(result)
 
 
-class SendDirectSMSView(views.APIView):
+class SendDirectSMSView(PlanFeatureRequiredMixin, views.APIView):
     """Send SMS directly without template"""
     permission_classes = [permissions.IsAuthenticated]
+    required_module = 'sms'
 
     def post(self, request):
         serializer = SendDirectSMSSerializer(data=request.data)
@@ -279,9 +281,10 @@ class SendDirectSMSView(views.APIView):
         return Response(result)
 
 
-class SendDirectEmailView(views.APIView):
+class SendDirectEmailView(PlanFeatureRequiredMixin, views.APIView):
     """Send email directly without template"""
     permission_classes = [permissions.IsAuthenticated]
+    required_module = 'email'
 
     def post(self, request):
         serializer = SendDirectEmailSerializer(data=request.data)
