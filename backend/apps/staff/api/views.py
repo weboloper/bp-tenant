@@ -6,6 +6,7 @@ from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 
 from staff.models import Employee
+from core.mixins import PlanLimitMixin
 from .serializers import (
     EmployeeSerializer,
     EmployeeListSerializer,
@@ -13,7 +14,7 @@ from .serializers import (
 from .permissions import CanManageEmployees
 
 
-class EmployeeViewSet(viewsets.ModelViewSet):
+class EmployeeViewSet(PlanLimitMixin, viewsets.ModelViewSet):
     """
     ViewSet for Employee management.
 
@@ -21,6 +22,8 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     Automatically scoped to user's company.
     """
     permission_classes = [IsAuthenticated, CanManageEmployees]
+    limit_name = 'employees'
+    count_queryset = Employee.objects.all()
 
     def get_serializer_class(self):
         """Use lightweight serializer for list, full serializer for detail/create"""
