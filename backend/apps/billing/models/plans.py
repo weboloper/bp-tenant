@@ -48,6 +48,18 @@ class SubscriptionPlan(models.Model):
         help_text=_("Product stock tracking")
     )
 
+    # === COMMUNICATION FEATURES ===
+    has_sms_notifications = models.BooleanField(
+        _("SMS Notifications"),
+        default=False,
+        help_text=_("Send SMS reminders and notifications")
+    )
+    has_email_notifications = models.BooleanField(
+        _("Email Notifications"),
+        default=True,
+        help_text=_("Send email reminders and notifications")
+    )
+
 
     # === EXTENDED FEATURES (rarely used, experimental - JSON for flexibility) ===
     extended_features = models.JSONField(
@@ -102,6 +114,8 @@ class SubscriptionPlan(models.Model):
         """
         module_map = {
             'inventory': self.has_inventory,
+            'sms': self.has_sms_notifications,
+            'email': self.has_email_notifications,
         }
         return module_map.get(module_name, False)
 
